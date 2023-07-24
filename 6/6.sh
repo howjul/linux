@@ -56,9 +56,9 @@ while true; do
           cursor_col=$((cursor_col + 1)) # 光标位置右移一位
           # 更新content
           old_content=$content
-          content="${old_content:0:$(( ${line_charnumber[cursor_row]} + cursor_row + cursor_col - 1 ))}"
+          content="${old_content:0:$(( ${line_charnumber[$((content_row + cursor_row))]} + content_row + cursor_row + cursor_col - 1 ))}"
           content+="$input"
-          content+="${old_content:$(( ${line_charnumber[cursor_row]} + cursor_row + cursor_col - 1 ))}"
+          content+="${old_content:$(( ${line_charnumber[$((content_row + cursor_row))]} + content_row + cursor_row + cursor_col - 1 ))}"
           update_insert_linelen  # 更新行数数组
           update_insert_charnumber  # 更新首字母数组
           flash # 刷新屏幕

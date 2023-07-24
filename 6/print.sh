@@ -24,10 +24,13 @@ function page_content() {
 
   # 显示当前页的内容
   old_col=$((cursor_col))
+  old_row=$((cursor_row))
   cursor_col=0
+  cursor_row=0
   move_cursor
   echo "$content" | sed -n "${start_line},${end_line}p"
   cursor_col=$((old_col))
+  cursor_row=$((old_row))
   move_cursor
 }
 

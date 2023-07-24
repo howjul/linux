@@ -31,6 +31,13 @@ function handle_arrow {
             fi
           fi
 
+          # short
+          if [ $content_total -lt $rows ]; then
+            if [ $cursor_row -ge $content_total ]; then
+              cursor_row=$((cursor_row - 1))
+            fi
+          fi
+
           limit=${line_len[$((content_row + cursor_row))]}
           if [ $cursor_col -ge $((limit)) ]; then
             cursor_col=$((limit - 1))
@@ -94,6 +101,14 @@ function handle_mode {
               content_row=$((content_row + 1))
             fi
           fi
+
+          # short
+          if [ $content_total -lt $rows ]; then
+            if [ $cursor_row -ge $content_total ]; then
+              cursor_row=$((cursor_row - 1))
+            fi
+          fi
+
           limit=${line_len[$((content_row + cursor_row))]}
           if [ $cursor_col -ge $((limit)) ]; then
             cursor_col=$((limit - 1))
@@ -121,8 +136,8 @@ function handle_mode {
       # 删除
       cursor_col=$((cursor_col - 1))  # 光标左移
       old_content=$content
-      content="${old_content:0:$(( ${line_charnumber[cursor_row]} + cursor_row + cursor_col ))}"
-      content+="${old_content:$(( ${line_charnumber[cursor_row]} + cursor_row + cursor_col + 1 ))}"
+      content="${old_content:0:$(( ${line_charnumber[$((cursor_row+content_row))]} + cursor_row + content_row + cursor_col ))}"
+      content+="${old_content:$(( ${line_charnumber[$((cursor_row+content_row))]} + cursor_row + content_row + cursor_col + 1 ))}"
       update_linelen_backspace  # 更新行数数组
       update_charnumber_backspace  # 更新首字母数组
       flash

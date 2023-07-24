@@ -15,23 +15,23 @@ content=`cat "$filename"` # 将文件内容存入content中
 content_total=`echo "$content" | wc -l` # 文本的总行数
 
 function update_insert_charnumber() {
-  for ((i=$((cursor_row+1)); i<${#line_len[@]}; i++)); do
+  for ((i=$((cursor_row+content_row+1)); i<${#line_len[@]}; i++)); do
     line_charnumber[i]=$((line_charnumber[i] + 1))
   done
 }
 
 function update_insert_linelen() {
-    line_len[cursor_row]=$((line_len[cursor_row] + 1))
+    line_len[$((cursor_row+content_row))]=$((line_len[cursor_row+content_row] + 1))
 }
 
 function update_charnumber_backspace() {
-  for ((i=$((cursor_row+1)); i<${#line_len[@]}; i++)); do
+  for ((i=$((cursor_row+content_row+1)); i<${#line_len[@]}; i++)); do
     line_charnumber[i]=$((line_charnumber[i] - 1))
   done
 }
 
 function update_linelen_backspace() {
-  line_len[cursor_row]=$((line_len[cursor_row] - 1))
+  line_len[cursor_row+content_row]=$((line_len[cursor_row+content_row] - 1))
 }
 
 function read_again() {
