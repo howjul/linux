@@ -90,12 +90,15 @@ while true; do
         else
           # 否则就是正常命令
           ins=""
+          IFSbak=$IFS
+          IFS="\n"
           # 读取命令       
           while [ "$input" != '.' ]; do
             ins="$ins$input"
             flash
             read -sn 1 input
           done
+          IFS=$IFSbaks
           # 使用sed来修改temp文件
           sed -i "$ins" temp
           # 用temp文件来初始化数组
