@@ -1,0 +1,4 @@
+echo –n “The time now is:”
+date
+echo –n “The users presently logged on are:”
+who
