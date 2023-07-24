@@ -33,12 +33,16 @@ function page_content() {
 
 # 在底部显示提示
 function suggestion {
+  # 保存原来的光标位置
   local old_col=$((cursor_col))
   local old_row=$((cursor_row))
+  # 把光标移动到屏幕最后一行
   cursor_col=0
   cursor_row=$((rows-1))
   move_cursor
+  # 打印出提示信息
   echo -n "$advice $((content_row + old_row)),$old_col $input $ins"
+  # 恢复光标位置
   cursor_col=$((old_col))
   cursor_row=$((old_row))
   move_cursor

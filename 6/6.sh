@@ -25,7 +25,7 @@ adivce="" # 显示在左下角的提示，类似vim中的提示
 # 编辑器主循环
 signal=0  # 退出信号
 while true; do
-  advice="1-插入模式 2-命令模式 上、下、左、右-箭头移动光标"
+  advice="1-插入模式 2-命令模式 3-保存退出 4-退出"
   ins=""
   flash # 刷新屏幕
 
@@ -33,7 +33,7 @@ while true; do
 
   case $input in
     1)
-      advice="插入模式: Esc+Esc-退出 Esc+'d'-删除单个字符 上、下、左、右-移动光标"
+      advice="插入模式: Esc+Esc-退出 Esc+'d'-删除单个字符"
       flash
       # 对于行内的字符操作
       while true; do
@@ -46,6 +46,7 @@ while true; do
           # 2. +d 删除当前光标所在位置的字符
           # 3. 上下左右箭头 移动光标
           handle_mode
+          # signal为1也就是按下两次Esc时
           if [ "$signal" == 1 ]; then
             signal=0
             break
@@ -53,6 +54,7 @@ while true; do
         else
           # 否则就是正常的插入
           cursor_col=$((cursor_col + 1)) # 光标位置右移一位
+          # 更新content
           old_content=$content
           content="${old_content:0:$(( ${line_charnumber[cursor_row]} + cursor_row + cursor_col - 1 ))}"
           content+="$input"
@@ -60,15 +62,15 @@ while true; do
           update_insert_linelen  # 更新行数数组
           update_insert_charnumber  # 更新首字母数组
           flash # 刷新屏幕
-        fi          
+        fi
       done
       ;;
     2)
       # 命令模式
-      advice="命令模式"
+      advice="命令模式: Esc+Esc-退出 命令以'.'结尾"
       flash
-      touch temp
-      echo "$content" > "temp"
+      touch temp # 创建一个临时文件
+      echo "$content" > "temp" # 把当前内容写入临时文件
 
       # 命令模式主循环
       while true; do
@@ -76,35 +78,45 @@ while true; do
         read -sn 1 input
 
         if [ "$input" == $'\e' ]; then
-          # 如果读到esc，则有三种情况，这三种情况都在：
+          # 如果读到esc，则有两种情况：
           # 1. +Esc 退出模式
           # 2. 上下左右箭头 移动光标
           handle_mode
+          # signal为1也就是按下两次Esc时
           if [ "$signal" == 1 ]; then
             signal=0
             break
           fi
         else
-          ins=""
           # 否则就是正常命令
+          ins=""
+          # 读取命令       
           while [ "$input" != '.' ]; do
             ins="$ins$input"
             flash
             read -sn 1 input
           done
+          # 使用sed来修改temp文件
           sed -i "$ins" temp
+          # 用temp文件来初始化数组
           read_again
           flash # 刷新屏幕
         fi          
       done
 
-      rm temp
+      rm temp # 删除temp文件
       ;;
     3)
       # 保存退出
       echo "$content" > "$filename"
       clear
       echo "文件已保存，退出编辑器。"
+      exit 0
+      ;;
+    4)
+      # 退出
+      clear
+      echo "退出编辑器。"
       exit 0
       ;;
     $'\e')
