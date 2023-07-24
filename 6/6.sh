@@ -23,6 +23,7 @@ cols=`tput cols`    # 终端总列数
 adivce="" # 显示在左下角的提示，类似vim中的提示
 
 # 编辑器主循环
+signal=0  # 退出信号
 while true; do
   advice="1-插入模式 2-命令模式 上、下、左、右-箭头移动光标"
   ins=""
@@ -45,6 +46,10 @@ while true; do
           # 2. +d 删除当前光标所在位置的字符
           # 3. 上下左右箭头 移动光标
           handle_mode
+          if [ "$signal" == 1 ]; then
+            signal=0
+            break
+          fi
         else
           # 否则就是正常的插入
           cursor_col=$((cursor_col + 1)) # 光标位置右移一位
@@ -75,6 +80,10 @@ while true; do
           # 1. +Esc 退出模式
           # 2. 上下左右箭头 移动光标
           handle_mode
+          if [ "$signal" == 1 ]; then
+            signal=0
+            break
+          fi
         else
           ins=""
           # 否则就是正常命令

@@ -129,7 +129,7 @@ function handle_mode {
       ;;
     *)
       # 退出插入模式
-      break
+      signal=1
       ;;
   esac
 }

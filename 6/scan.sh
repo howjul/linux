@@ -12,7 +12,7 @@ while IFS= read -r line; do
 done < "$filename"
 
 content=`cat "$filename"` # 将文件内容存入content中
-content_total=$(echo "$content" | wc -l) # 文本的总行数
+content_total=`echo "$content" | wc -l` # 文本的总行数
 
 function update_insert_charnumber() {
   for ((i=$((cursor_row+1)); i<${#line_len[@]}; i++)); do
@@ -35,12 +35,18 @@ function update_linelen_backspace() {
 }
 
 function read_again() {
+  unset line_len
+  unset line_charnumber
+  line_charnumber[0]=0
+  last_index=0
+
   while IFS= read -r line; do
     length=${#line}
     line_len+=($length)
     last_index=$((${#line_charnumber[@]}-1))
     line_charnumber+=($(( line_charnumber[last_index] + length )))
   done < "temp"
+
   content=`cat temp` # 将文件内容存入content中
-  content_total=$(echo "$content" | wc -l) # 文本的总行数
+  content_total=`echo "$content" | wc -l` # 文本的总行数
 }

@@ -1,7 +1,4 @@
 if [ $# != 1 ]; then
-    echo "Usage: $0 <Directory>"
-    exit 1
-fi
 if [ ! -d $1 ]; then
     echo "Error: $1 is not a valid directory."
     exit 1
