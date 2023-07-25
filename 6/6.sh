@@ -90,6 +90,7 @@ while true; do
         else
           # 否则就是正常命令
           ins=""
+          # 把IFS设置成非空格，防止空格无法读入
           IFSbak=$IFS
           IFS="\n"
           # 读取命令       
@@ -98,6 +99,7 @@ while true; do
             flash
             read -sn 1 input
           done
+          # 恢复IFS
           IFS=$IFSbaks
           # 使用sed来修改temp文件
           sed -i "$ins" temp
