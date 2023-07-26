@@ -41,7 +41,14 @@ int main(int Argc, char *Argv[]){
     int flag = 1;
     while(flag){
         //打印提示
-        printf("\033[36%s@%s: \033[43%s$ \033[?25h", username.c_str(), hostname.c_str(), pwd.c_str());
+        //如果路径中包含主目录，则替换成～
+        string cur_path = pwd;
+        size_t pos = pwd.find(homename);
+        if(pos != string::npos){
+            cur_path.erase(pos, homename.length());
+            cur_path = "~" + cur_path;
+        }
+        printf("\033[36m%s@%s: \033[33m%s$ \033[?25h", username.c_str(), hostname.c_str(), cur_path.c_str());
 
         //存储命令
         string command;
@@ -66,14 +73,9 @@ void initshell(int Argc, char * Argv[]){
     hostname = gethostname(buf, 512);
     hostname = buf;
 
-    //获得当前用户名
-    username = getenv("USER");
-
-    //获得主路径
-    homename = getenv("HOME");
-
-    //获得当前路径
-    pwd = getenv("PWD");
+    username = getenv("USER");  //获得当前用户名
+    homename = getenv("HOME");  //获得主路径
+    pwd = getenv("PWD");  //获得当前路径
 
     //如果有两个参数，那就是正常进入
     if(Argc == 2){
