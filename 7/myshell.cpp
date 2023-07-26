@@ -90,6 +90,8 @@ void initshell(int Argc, char * Argv[]){
 void analyze(string cmd[], int argnum){
     if(cmd[0] == "cd"){
         my_cd(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "dir"){
+        my_dir(cmd + 1, argnum - 1);
     }
     return ;
 }
@@ -123,8 +125,73 @@ void my_cd(string cmd[], int argnum){
 }
 
 void my_dir(string cmd[], int argnum){
+    DIR *dir;
+    struct dirent *ptr;
 
-    
+    //检查参数
+    if(argnum == 0){
+        //如果无参数就打印当前目录
+        dir = opendir(pwd.c_str());
+    }else if(argnum == 1){
+        //如果有一个参数那就打印参数的目录内容
+        string target;
+
+        //如果是一些特殊符号，需要进行预处理
+        size_t pos;
+        if((pos = cmd[0].find("../")) != string::npos){
+            //获取目标文件夹
+            chdir(cmd[0].c_str());
+            char path_changed[1024];
+            getcwd(path_changed, 1024);
+            chdir(pwd.c_str());
+            target = path_changed;
+        }else if((pos = cmd[0].find("./")) != string::npos){
+            target = cmd[0];
+            target.erase(pos, 1);
+            target = pwd + target;
+        }else if((pos = cmd[0].find("~/")) != string::npos){
+            target = cmd[0];
+            target.erase(pos, 1);
+            target = homepath + target;
+        }else if(cmd[0] == "."){
+            target = pwd;
+        }else if(cmd[0] == ".."){
+            //获取父文件夹
+            chdir(cmd[0].c_str());
+            char path_changed[1024];
+            getcwd(path_changed, 1024);
+            chdir(pwd.c_str());
+            string parent = path_changed;
+            target = parent;
+        }else if(cmd[0] == "~"){
+            target = homepath;
+        }
+
+        //调用opendir打开文件夹
+        dir = opendir(target.c_str());
+    }else{
+        //参数过多，报错
+        perror("Error! No more then one parameter.");
+        state = 1;
+        return;
+    }
+
+    //检查路径
+    if(dir == NULL){
+        perror("Error! Cannot open directory.");
+        state = 1;
+        return;
+    }
+
+    //打印内容
+    while((ptr = readdir(dir)) != NULL){
+        printf("%s ", ptr->d_name);
+    }
+    printf("\n");
+
+    //关闭文件夹
+    closedir(dir);
+
     state = 0;
     return;
 }
