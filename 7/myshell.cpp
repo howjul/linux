@@ -36,6 +36,8 @@ void analyze(string cmd[], int argnum);
 
 void my_cd(string cmd[], int argnum);
 void my_dir(string cmd[], int argnum);
+void my_clr(string cmd[], int argnum);
+void my_echo(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -92,6 +94,10 @@ void analyze(string cmd[], int argnum){
         my_cd(cmd + 1, argnum - 1);
     }else if(cmd[0] == "dir"){
         my_dir(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "clr"){
+        my_clr(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "echo"){
+        my_echo(cmd + 1, argnum - 1);
     }
     return ;
 }
@@ -194,4 +200,19 @@ void my_dir(string cmd[], int argnum){
 
     state = 0;
     return;
+}
+
+void my_clr(string cmd[], int argnum){
+    if (argnum > 0){
+        perror("Error! Too much parameters.");
+        state = 1;
+        return;
+    }
+    system("clear");
+    state = 0;
+    return;
+}
+
+void my_echo(string cmd[], int argnum){
+
 }
