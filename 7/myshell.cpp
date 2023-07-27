@@ -45,6 +45,7 @@ void my_echo(string cmd[], int argnum);
 void my_pwd(string cmd[], int argnum);
 void my_exit(string cmd[], int argnum);
 void my_time(string cmd[], int argnum);
+void my_set(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -117,6 +118,8 @@ void analyze(string cmd[], int argnum){
         my_exit(cmd + 1, argnum - 1);
     }else if(cmd[0] == "time"){
         my_time(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "set"){
+        my_set(cmd + 1, argnum - 1);
     }else{
         printmessage("", "Error! Command not found.\n", 1);
     }
@@ -316,5 +319,22 @@ void my_time(string cmd[], int argnum){
     ss << " " << wday[p->tm_wday] << " " << p->tm_hour << ":" << p-> tm_min << ":" << p->tm_sec << endl;
 
     printmessage(ss.str(), "", 0);
+    return;
+}
+
+void my_set(string cmd[], int argnum){
+    stringstream ss;
+    if(argnum == 0){
+        //若无参数直接输出所有的环境变量
+        extern char **environ;
+        for(int i = 0; environ[i] != NULL; i++){
+            ss << environ[i] << " ";
+        }
+        ss << endl;
+        printmessage(ss.str(), "", 0);
+    }else{
+        printmessage("", "Error! No parameter.\n", 1);
+        return;
+    }
     return;
 }
