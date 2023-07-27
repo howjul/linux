@@ -38,6 +38,7 @@ void my_cd(string cmd[], int argnum);
 void my_dir(string cmd[], int argnum);
 void my_clr(string cmd[], int argnum);
 void my_echo(string cmd[], int argnum);
+void my_pwd(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -103,6 +104,8 @@ void analyze(string cmd[], int argnum){
         my_clr(cmd + 1, argnum - 1);
     }else if(cmd[0] == "echo"){
         my_echo(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "pwd"){
+        my_pwd(cmd + 1, argnum - 1);
     }
     return ;
 }
@@ -252,5 +255,17 @@ void my_echo(string cmd[], int argnum){
         }
     }
     printf("\n");
+    state = 0;
+    return;
+}
+
+void my_pwd(string cmd[], int argnum){
+    if(argnum > 0){
+        perror("Error! No parameter.");
+        state = 1;
+        return;
+    }
+    printf("%s\n", pwd.c_str());
+    state = 0;
     return;
 }
