@@ -26,7 +26,7 @@ string homepath;    //主目录路径
 string pwd;         //当前路径
 //参数
 int argc;
-string argv[512];
+string argv[1024];
 //执行状态
 int state;
 
@@ -80,6 +80,11 @@ void initshell(int Argc, char * Argv[]){
     username = getenv("USER");  //获得当前用户名
     homepath = getenv("HOME");  //获得主路径
     pwd = getenv("PWD");  //获得当前路径
+
+    argc = Argc;
+    for(int i = 0; i < Argc; i++){
+        argv[i] = Argv[i];
+    }
 
     //如果有两个参数，那就是正常进入
     if(Argc == 2){
@@ -214,5 +219,38 @@ void my_clr(string cmd[], int argnum){
 }
 
 void my_echo(string cmd[], int argnum){
+    //没有足够的参数，报错退出
+    if(argnum == 0){
+        perror("Error! Need arguments.");
+        state = 1;
+        return;
+    }
 
+    //打印主循环
+    for(int i = 0; i < argnum; i++){
+        string cur_word = cmd[i];
+        size_t pos = cur_word.find("$");
+        //在参数中找到了$字符
+        if(pos == 0){
+            if(cur_word[1] == '#'){
+                //打印参数个数
+                printf("%d ", argc - 1);
+            }else if(isdigit(cur_word[1])){
+                //打印参数，先把参数转化成数字
+                cur_word.erase(pos, 1);
+                int imm = stoi(cur_word);
+                printf("%s ", argv[imm].c_str());
+            }else{
+                //打印环境变量
+                cur_word.erase(pos, 1);
+                string environ = getenv(cur_word.c_str());
+                printf("%s ", environ.c_str());
+            }
+        }else{
+        //原样输出
+            printf("%s ", cur_word.c_str());
+        }
+    }
+    printf("\n");
+    return;
 }
