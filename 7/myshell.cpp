@@ -44,6 +44,7 @@ void my_clr(string cmd[], int argnum);
 void my_echo(string cmd[], int argnum);
 void my_pwd(string cmd[], int argnum);
 void my_exit(string cmd[], int argnum);
+void my_time(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -114,6 +115,8 @@ void analyze(string cmd[], int argnum){
         my_pwd(cmd + 1, argnum - 1);
     }else if(cmd[0] == "exit"){
         my_exit(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "time"){
+        my_time(cmd + 1, argnum - 1);
     }else{
         printmessage("", "Error! Command not found.\n", 1);
     }
@@ -291,5 +294,27 @@ void my_exit(string cmd[], int argnum){
     }
     printmessage("", "", 0);
     exit(0);
+    return;
+}
+
+void my_time(string cmd[], int argnum){
+    if(argnum > 0){
+        printmessage("", "Error! No parameter.\n", 1);
+        return;
+    }
+
+    time_t timep;   //时间结构体变量
+    string wday[7] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+    struct tm *p;
+    time(&timep);   //获取当前时间
+
+    stringstream ss;
+    //ss << asctime(gmtime(&timep));
+    
+    p = localtime(&timep);
+    ss << 1900 + p->tm_year << "年" << 1 + p->tm_mon << "月" << p->tm_mday << "日";
+    ss << " " << wday[p->tm_wday] << " " << p->tm_hour << ":" << p-> tm_min << ":" << p->tm_sec << endl;
+
+    printmessage(ss.str(), "", 0);
     return;
 }
