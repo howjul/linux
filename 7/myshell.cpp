@@ -29,16 +29,21 @@ int argc;
 string argv[1024];
 //执行状态
 int state;
+//输出
+string output;      //正常输出
+string operror;     //错误信息
 
 
 void initshell(int Argc, char *Argv[]);
 void analyze(string cmd[], int argnum);
+void printmessage(string mes1, string mes2, int cur_state);
 
 void my_cd(string cmd[], int argnum);
 void my_dir(string cmd[], int argnum);
 void my_clr(string cmd[], int argnum);
 void my_echo(string cmd[], int argnum);
 void my_pwd(string cmd[], int argnum);
+void my_exit(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -82,6 +87,7 @@ void initshell(int Argc, char * Argv[]){
     homepath = getenv("HOME");  //获得主路径
     pwd = getenv("PWD");  //获得当前路径
 
+    //参数复制
     argc = Argc;
     for(int i = 0; i < Argc; i++){
         argv[i] = Argv[i];
@@ -106,15 +112,26 @@ void analyze(string cmd[], int argnum){
         my_echo(cmd + 1, argnum - 1);
     }else if(cmd[0] == "pwd"){
         my_pwd(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "exit"){
+        my_exit(cmd + 1, argnum - 1);
+    }else{
+        printmessage("", "Error! Command not found.\n", 1);
     }
     return ;
+}
+
+void printmessage(string mes1, string mes2, int cur_state){
+    output = mes1;
+    operror = mes2;
+    state = cur_state;
+    printf("%s%s", output.c_str(), operror.c_str());
+    return;
 }
 
 void my_cd(string cmd[], int argnum){
     //如果参数个数不为1，直接报错退出
     if (argnum != 1){
-        perror("Error! Usage: cd <path>");
-        state = 1;
+        printmessage("", "Error! Usage: cd <path>\n", 1);
         return;
     }
     //如果参数个数为1
@@ -130,10 +147,10 @@ void my_cd(string cmd[], int argnum){
         setenv("PWD", pwd.c_str(), 1);
     } else {
         //如果跳转失败
-        perror("Error changing directory");
-        state = 1;
+        printmessage("", "Error! Cannot change directory.\n", 1);
         return;
     }
+
     state = 0;
     return;
 }
@@ -185,35 +202,33 @@ void my_dir(string cmd[], int argnum){
         dir = opendir(target.c_str());
     }else{
         //参数过多，报错
-        perror("Error! No more then one parameter.");
-        state = 1;
+        printmessage("", "Error! No more then one parameter.\n", 1);
         return;
     }
 
     //检查路径
     if(dir == NULL){
-        perror("Error! Cannot open directory.");
-        state = 1;
+        printmessage("", "Error! Cannot open directory.\n", 1);
         return;
     }
 
     //打印内容
+    stringstream ss;
     while((ptr = readdir(dir)) != NULL){
-        printf("%s ", ptr->d_name);
+        ss << ptr->d_name << " ";
     }
-    printf("\n");
+    ss << endl;
+    printmessage(ss.str(), "", 0);
 
     //关闭文件夹
     closedir(dir);
 
-    state = 0;
     return;
 }
 
 void my_clr(string cmd[], int argnum){
     if (argnum > 0){
-        perror("Error! Too much parameters.");
-        state = 1;
+        printmessage("", "Error! Too much parameters.\n", 1);
         return;
     }
     system("clear");
@@ -224,11 +239,11 @@ void my_clr(string cmd[], int argnum){
 void my_echo(string cmd[], int argnum){
     //没有足够的参数，报错退出
     if(argnum == 0){
-        perror("Error! Need arguments.");
-        state = 1;
+        printmessage("", "Error! Need arguments.\n", 1);
         return;
     }
 
+    stringstream ss;
     //打印主循环
     for(int i = 0; i < argnum; i++){
         string cur_word = cmd[i];
@@ -237,35 +252,44 @@ void my_echo(string cmd[], int argnum){
         if(pos == 0){
             if(cur_word[1] == '#'){
                 //打印参数个数
-                printf("%d ", argc - 1);
+                ss << argc - 1 << " ";
             }else if(isdigit(cur_word[1])){
                 //打印参数，先把参数转化成数字
                 cur_word.erase(pos, 1);
                 int imm = stoi(cur_word);
-                printf("%s ", argv[imm].c_str());
+                ss << argv[imm] << " ";
             }else{
                 //打印环境变量
                 cur_word.erase(pos, 1);
                 string environ = getenv(cur_word.c_str());
-                printf("%s ", environ.c_str());
+                ss << environ << " ";
             }
         }else{
         //原样输出
-            printf("%s ", cur_word.c_str());
+            ss << cur_word << " ";
         }
     }
-    printf("\n");
-    state = 0;
+    ss << endl;
+    printmessage(ss.str(), "", 0);
     return;
 }
 
 void my_pwd(string cmd[], int argnum){
     if(argnum > 0){
-        perror("Error! No parameter.");
-        state = 1;
+        printmessage("", "Error! No parameter.\n", 1);
         return;
     }
-    printf("%s\n", pwd.c_str());
-    state = 0;
+    string op = pwd + "\n";
+    printmessage(op, "", 0);
+    return;
+}
+
+void my_exit(string cmd[], int argnum){
+    if(argnum > 0){
+        printmessage("", "Error! No parameter.\n", 1);
+        return;
+    }
+    printmessage("", "", 0);
+    exit(0);
     return;
 }
