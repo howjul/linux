@@ -6,6 +6,7 @@
 #include <string>
 #include <ctime>
 #include <sstream>
+#include <fstream>
 #include <vector>
 #include <dirent.h>
 #include <ctype.h>
@@ -46,6 +47,7 @@ void my_pwd(string cmd[], int argnum);
 void my_exit(string cmd[], int argnum);
 void my_time(string cmd[], int argnum);
 void my_set(string cmd[], int argnum);
+void my_help(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -120,6 +122,8 @@ void analyze(string cmd[], int argnum){
         my_time(cmd + 1, argnum - 1);
     }else if(cmd[0] == "set"){
         my_set(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "help"){
+        my_help(cmd + 1, argnum - 1);
     }else{
         printmessage("", "Error! Command not found.\n", 1);
     }
@@ -135,6 +139,9 @@ void printmessage(string mes1, string mes2, int cur_state){
 }
 
 void my_cd(string cmd[], int argnum){
+    if (argnum == 0){
+        printmessage(pwd.c_str(), "", 0);
+    }
     //如果参数个数不为1，直接报错退出
     if (argnum != 1){
         printmessage("", "Error! Usage: cd <path>\n", 1);
@@ -334,6 +341,49 @@ void my_set(string cmd[], int argnum){
         printmessage(ss.str(), "", 0);
     }else{
         printmessage("", "Error! No parameter.\n", 1);
+        return;
+    }
+    return;
+}
+
+void my_help(string cmd[], int argnum){
+    stringstream ss;
+    stringstream sss;
+
+    ifstream helpfile("help"); // 打开文件，将文件名替换为你要读取的文件名
+
+    if (!helpfile.is_open()) {
+        ss << "Failed to open the file." << endl;
+        printmessage("", ss.str(), 1);
+        return;
+    }
+
+    string line;
+    while (getline(helpfile, line)) {
+        ss << line << endl; // 逐行输出文件内容
+    }
+
+    helpfile.close(); // 关闭文件
+
+    if(argnum == 0){
+        printmessage(ss.str(), "", 0);
+    }else if(argnum == 1){
+        //若为一参数，则进行查找
+        string ins = cmd[0];
+        while(getline(ss, line)){
+            if(line.find(ins) != string::npos){
+                sss << line << endl;
+                for(int i = 0; i < 2; i++){
+                    getline(ss, line);
+                    sss << line << endl;
+                }
+                break;
+            }
+        }
+        printmessage(sss.str(), "", 0);
+    }else{
+        //参数过多
+        printmessage("", "Error! Too much parameters.\n", 1);
         return;
     }
     return;
