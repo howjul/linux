@@ -49,6 +49,7 @@ void my_time(string cmd[], int argnum);
 void my_set(string cmd[], int argnum);
 void my_help(string cmd[], int argnum);
 void my_umask(string cmd[], int argnum);
+void my_exec(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -127,6 +128,8 @@ void analyze(string cmd[], int argnum){
         my_help(cmd + 1, argnum - 1);
     }else if(cmd[0] == "umask"){
         my_umask(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "exec"){
+        my_exec(cmd + 1, argnum - 1);
     }else{
         printmessage("", "Error! Command not found.\n", 1);
     }
@@ -429,5 +432,22 @@ void my_umask(string cmd[], int argnum){
         //参数多于两个
         printmessage("", "Error! Too much parameters.\n", 1);
     }
+    return;
+}
+
+void my_exec(string cmd[], int argnum){
+    if(argnum == 0){
+        printmessage("", "Error! Need parameter.\n", 1);
+        return;
+    }
+    char *cmdarg[argnum + 1];
+    //传递参数
+    for(int i = 0; i < argnum; i++){
+        cmdarg[i] = (char *)cmd[i].c_str();
+    }
+    cmdarg[argnum] = NULL;
+    printmessage("", "", 0);
+    execvp(cmd[0].c_str(), cmdarg);
+    printmessage("", "Error! Cannot open the program.", 1);
     return;
 }
