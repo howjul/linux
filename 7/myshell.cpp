@@ -48,6 +48,7 @@ void my_exit(string cmd[], int argnum);
 void my_time(string cmd[], int argnum);
 void my_set(string cmd[], int argnum);
 void my_help(string cmd[], int argnum);
+void my_umask(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -124,6 +125,8 @@ void analyze(string cmd[], int argnum){
         my_set(cmd + 1, argnum - 1);
     }else if(cmd[0] == "help"){
         my_help(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "umask"){
+        my_umask(cmd + 1, argnum - 1);
     }else{
         printmessage("", "Error! Command not found.\n", 1);
     }
@@ -385,6 +388,46 @@ void my_help(string cmd[], int argnum){
         //参数过多
         printmessage("", "Error! Too much parameters.\n", 1);
         return;
+    }
+    return;
+}
+
+void my_umask(string cmd[], int argnum){
+    if(argnum == 0){
+        //没有参数显示umask的值
+        mode_t curmode = umask(0);
+        umask(curmode);
+        string printmode;
+        printmode = to_string((curmode >> 9) & 7) + 
+                    to_string((curmode >> 6) & 7) + 
+                    to_string((curmode >> 3) & 7) + 
+                    to_string(curmode & 7) + '\n';
+        printmessage(printmode, "", 0);
+    }else if(argnum == 1){
+        //有一个参数则设置umask的值
+        //如果长度大于4，则报错
+        if(cmd[0].length() > 4){
+            printmessage("", "Error! No more than four numbers.\n", 1);
+            return;
+        }
+        //补齐位数到四位
+        while(cmd[0].length() < 4) cmd[0] = '0' + cmd[0];
+        if(cmd[0][0] >= '0' && cmd[0][0] <= '7' && 
+           cmd[0][1] >= '0' && cmd[0][1] <= '7' && 
+           cmd[0][2] >= '0' && cmd[0][2] <= '7' && 
+           cmd[0][3] >= '0' && cmd[0][3] <= '7' ){
+            int umasknum = 0;
+            umasknum = ((cmd[0][0] - '0') << 9) + ((cmd[0][1] - '0') << 6) + 
+                       ((cmd[0][2] - '0') << 3) + (cmd[0][3] - '0');
+            umask(umasknum);
+            printmessage("", "", 0);
+            return;
+        }
+        //如果cmd有字符不是数字
+        printmessage("", "Error! Unknown number.\n", 1);
+    }else{
+        //参数多于两个
+        printmessage("", "Error! Too much parameters.\n", 1);
     }
     return;
 }
