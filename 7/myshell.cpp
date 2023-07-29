@@ -16,6 +16,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 using namespace std;
 
 //全局变量
@@ -26,7 +27,7 @@ string username;    //用户名
 string homepath;    //主目录路径
 string pwd;         //当前路径
 string helppath;        //获得help文件路径
-string myshellpath;         //获得myshell路径
+string myshellpath;     //获得myshell路径
 //参数
 int argc;
 string argv[1024];
@@ -40,6 +41,7 @@ string operror;     //错误信息
 void initshell(int Argc, char *Argv[]);
 void analyze(string cmd[], int argnum);
 void printmessage(string mes1, string mes2, int cur_state);
+string explainpara(string input);
 
 void my_cd(string cmd[], int argnum);
 void my_dir(string cmd[], int argnum);
@@ -106,14 +108,15 @@ void initshell(int Argc, char * Argv[]){
         argv[i] = Argv[i];
     }
 
+    //获取当前shell所在路径，linux环境下
     char buffer[PATH_MAX];
     ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
     if (len != -1) {
         buffer[len] = '\0';
         myshellpath = buffer;
-        cout << getenv("SHELL");
+        //cout << getenv("SHELL");
         setenv("SHELL", buffer, 1);
-        cout << getenv("SHELL");
+        //cout << getenv("SHELL");
     } else {
         perror("Error while getting program path");
     }
@@ -163,6 +166,35 @@ void printmessage(string mes1, string mes2, int cur_state){
     state = cur_state;
     printf("%s%s", output.c_str(), operror.c_str());
     return;
+}
+
+string explainpara(string input){
+    string output;
+
+    if(input == "$#"){
+        output = to_string(argc);
+    }else if(input[0] == '$'){ 
+        //去除第一个字符'$'
+        input.erase(0, 1);
+        int index;
+        try{
+            //若转换成字符没有异常，则为参数引用
+            index = stoi(input);
+            output = argv[index];
+        }catch (const invalid_argument& e) {
+            //其他的看成环境变量
+            output = getenv(input.c_str());
+            if(output.c_str() == NULL) return NULL;
+        }catch (const out_of_range& e) {
+            //其他的看成环境变量
+            output = getenv(input.c_str());
+            if(output.c_str() == NULL) return NULL;
+        }
+    }else{
+        output = input;
+    }
+
+    return output;
 }
 
 void my_cd(string cmd[], int argnum){
@@ -479,7 +511,7 @@ void my_test(string cmd[], int argnum){
         printmessage("", "Error! Need parameter.\n", 1);
         return;
     }else if(argnum == 2){
-        string curstr = cmd[1];
+        string curstr = explainpara(cmd[1]);
         //文件测试
         if(cmd[0] == "-e"){
             //获取文件信息
@@ -643,9 +675,9 @@ void my_test(string cmd[], int argnum){
             printmessage("", "Error! Command not found.\n", 1);
         }
     }else if(argnum == 3){
-        string str1 = cmd[0];
+        string str1 = explainpara(cmd[0]);
         string symbol = cmd[1];
-        string str2 = cmd[2];
+        string str2 = explainpara(cmd[2]);
 
         //字符串测试
         if(symbol == "="){
