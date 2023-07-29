@@ -26,6 +26,7 @@ string username;    //用户名
 string homepath;    //主目录路径
 string pwd;         //当前路径
 string helppath;        //获得help文件路径
+string myshellpath;         //获得myshell路径
 //参数
 int argc;
 string argv[1024];
@@ -52,6 +53,8 @@ void my_help(string cmd[], int argnum);
 void my_umask(string cmd[], int argnum);
 void my_exec(string cmd[], int argnum);
 void my_test(string cmd[], int argnum);
+
+void my_outer(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -96,6 +99,7 @@ void initshell(int Argc, char * Argv[]){
     pwd = getenv("PWD");  //获得当前路径
 
     helppath = pwd + "/help"; //获得帮助路径
+    myshellpath = pwd + "/myshell";//获得myshell路径
 
     //参数复制
     argc = Argc;
@@ -137,7 +141,7 @@ void analyze(string cmd[], int argnum){
     }else if(cmd[0] == "test"){
         my_test(cmd + 1, argnum - 1);
     }else{
-        printmessage("", "Error! Command not found.\n", 1);
+        my_outer(cmd, argnum);
     }
     return ;
 }
@@ -455,7 +459,7 @@ void my_exec(string cmd[], int argnum){
     cmdarg[argnum] = NULL;
     printmessage("", "", 0);
     execvp(cmd[0].c_str(), cmdarg);
-    printmessage("", "Error! Cannot open the program.", 1);
+    printmessage("", "Error! Cannot open the program.\n", 1);
     return;
 }
 
@@ -878,6 +882,26 @@ void my_test(string cmd[], int argnum){
         }
     }else{
         printmessage("", "Error! Wrong parameter.\n", 1);
+    }
+    return;
+}
+
+void my_outer(string cmd[], int argnum){
+    pid_t son = fork();
+    if(son < 0){
+        //子进程调用失败
+        printmessage("", "Error! Fork failed.\n", 1);
+        return;
+    }else if(son == 0){//子进程
+        //设置parent环境变量
+        setenv("PARENT", myshellpath.c_str(), 1);
+        //调用原来的exec函数
+        my_exec(cmd, argnum);
+        printmessage("", "Error! Cannot execute the command.\n", 1);
+        exit(0);
+    }else{//父进程
+        waitpid(son, NULL, 0);
+        printmessage("",  "", 0);
     }
     return;
 }
