@@ -25,6 +25,7 @@ string hostname;    //主机
 string username;    //用户名
 string homepath;    //主目录路径
 string pwd;         //当前路径
+string helppath;        //获得help文件路径
 //参数
 int argc;
 string argv[1024];
@@ -93,6 +94,8 @@ void initshell(int Argc, char * Argv[]){
     username = getenv("USER");  //获得当前用户名
     homepath = getenv("HOME");  //获得主路径
     pwd = getenv("PWD");  //获得当前路径
+
+    helppath = pwd + "/help"; //获得帮助路径
 
     //参数复制
     argc = Argc;
@@ -359,7 +362,7 @@ void my_help(string cmd[], int argnum){
     stringstream ss;
     stringstream sss;
 
-    ifstream helpfile("help"); // 打开文件，将文件名替换为你要读取的文件名
+    ifstream helpfile(helppath); // 打开文件
 
     if (!helpfile.is_open()) {
         ss << "Failed to open the file." << endl;
@@ -382,9 +385,10 @@ void my_help(string cmd[], int argnum){
         while(getline(ss, line)){
             if(line.find(ins) != string::npos){
                 sss << line << endl;
-                for(int i = 0; i < 2; i++){
-                    getline(ss, line);
+                getline(ss, line);
+                while(line != ""){
                     sss << line << endl;
+                    getline(ss, line);
                 }
                 break;
             }
