@@ -50,6 +50,7 @@ void my_set(string cmd[], int argnum);
 void my_help(string cmd[], int argnum);
 void my_umask(string cmd[], int argnum);
 void my_exec(string cmd[], int argnum);
+void my_test(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
@@ -130,6 +131,8 @@ void analyze(string cmd[], int argnum){
         my_umask(cmd + 1, argnum - 1);
     }else if(cmd[0] == "exec"){
         my_exec(cmd + 1, argnum - 1);
+    }else if(cmd[0] == "test"){
+        my_test(cmd + 1, argnum - 1);
     }else{
         printmessage("", "Error! Command not found.\n", 1);
     }
@@ -449,5 +452,428 @@ void my_exec(string cmd[], int argnum){
     printmessage("", "", 0);
     execvp(cmd[0].c_str(), cmdarg);
     printmessage("", "Error! Cannot open the program.", 1);
+    return;
+}
+
+void my_test(string cmd[], int argnum){
+    if(argnum == 0){
+        printmessage("", "Error! Need parameter.\n", 1);
+        return;
+    }else if(argnum == 2){
+        string curstr = cmd[1];
+        //文件测试
+        if(cmd[0] == "-e"){
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == -1) printmessage("false\n", "", 0);
+            else printmessage("true\n", "", 0);
+        }else if(cmd[0] == "-r"){
+            //如果文件存在且可读则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && access(curstr.c_str(), R_OK) == 0) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-w"){
+            //如果文件存在且可写则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && access(curstr.c_str(), W_OK) == 0) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-x"){
+            //如果文件存在且可执行则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && access(curstr.c_str(), X_OK) == 0) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-s"){
+            //如果文件存在且至少有一个字符则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && buf.st_size) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-d"){
+            //如果文件存在且为目录则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && S_ISDIR(buf.st_mode) ) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-f"){
+            //如果文件存在且为普通文件则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && S_ISREG(buf.st_mode) ) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-c"){
+            //如果文件存在且为字符型特殊文件则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && S_ISCHR(buf.st_mode) ) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-b"){
+            //如果文件存在且为块特殊文件则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && S_ISBLK(buf.st_mode) ) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-p"){
+            //如果文件存在且为命名管道则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && S_ISFIFO(buf.st_mode) ) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-S"){
+            //如果文件存在且为套接字则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && S_ISSOCK(buf.st_mode) ) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-g"){
+            //如果文件存在且设置了gid则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && (buf.st_mode & S_ISGID)) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-u"){
+            //如果文件存在且设置了uid则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && (buf.st_mode & S_ISUID)) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-G"){
+            //如果文件存在且且归该组所有则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && (buf.st_gid == getgid())) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-k"){
+            //如果文件存在且设置了粘着位则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && (buf.st_mode & S_ISVTX)) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-O"){
+            //如果文件存在且且归该用户所有则为真
+            //获取文件信息
+            struct stat buf;
+            int ret = lstat(curstr.c_str(), &buf);
+            //判断
+            if(ret == 0 && (buf.st_uid == getuid())) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-t"){
+            //如果 fd 是一个与终端相连的打开的文件描述符则为真
+            int fd;
+            try{
+                fd = stoi(curstr);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            //判断
+            if(isatty(fd)) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }
+        //字符串测试
+        else if(cmd[0] == "-z"){
+            //字符串长度为零则为真
+            if(curstr.length() == 0) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(cmd[0] == "-n"){
+            //字符串长度不为零则为真
+            if(curstr.length()) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }
+        //未定义
+        else{
+            printmessage("", "Error! Command not found.\n", 1);
+        }
+    }else if(argnum == 3){
+        string str1 = cmd[0];
+        string symbol = cmd[1];
+        string str2 = cmd[2];
+
+        //字符串测试
+        if(symbol == "="){
+            if(str1 == str2) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(symbol == "!="){
+            if(str1 != str2) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }
+        //文件测试
+        else if(symbol == "-ef"){
+            //文件读入
+            struct stat buf1;
+            struct stat buf2;
+            int ret1 = lstat(str1.c_str(), &buf1);
+            int ret2 = lstat(str2.c_str(), &buf2);
+            //若文件无法读入则直接报错退出
+            if(!(ret1 == 0 && ret2 == 0)){
+                printmessage("", "Error! File not found.\n", 1);
+                return;
+            }
+            //若两个文件都成功读入则进行比较
+            if((buf1.st_dev == buf2.st_dev) && (buf1.st_ino == buf2.st_ino))printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(symbol == "-nt"){
+            //文件读入
+            struct stat buf1;
+            struct stat buf2;
+            int ret1 = lstat(str1.c_str(), &buf1);
+            int ret2 = lstat(str2.c_str(), &buf2);
+            //若文件无法读入则直接报错退出
+            if(!(ret1 == 0 && ret2 == 0)){
+                printmessage("", "Error! File not found.\n", 1);
+                return;
+            }
+            //若两个文件都成功读入则进行比较
+            if(buf1.st_mtime > buf2.st_mtime)printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(symbol == "-ot"){
+            //文件读入
+            struct stat buf1;
+            struct stat buf2;
+            int ret1 = lstat(str1.c_str(), &buf1);
+            int ret2 = lstat(str2.c_str(), &buf2);
+            //若文件无法读入则直接报错退出
+            if(!(ret1 == 0 && ret2 == 0)){
+                printmessage("", "Error! File not found.\n", 1);
+                return;
+            }
+            //若两个文件都成功读入则进行比较
+            if(buf1.st_mtime < buf2.st_mtime)printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }
+        //数值测试
+        else if(symbol == "-eq"){
+            double num1; 
+            double num2;
+            try{
+                num1 = stod(str1);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            try{
+                num2 = stod(str2);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            if(num1 == num2) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(symbol == "-ne"){
+            double num1; 
+            double num2;
+            try{
+                num1 = stod(str1);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            try{
+                num2 = stod(str2);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            if(num1 != num2) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(symbol == "-ge"){
+            double num1; 
+            double num2;
+            try{
+                num1 = stod(str1);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            try{
+                num2 = stod(str2);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            if(num1 >= num2) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(symbol == "-gt"){
+            double num1; 
+            double num2;
+            try{
+                num1 = stod(str1);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            try{
+                num2 = stod(str2);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            if(num1 > num2) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(symbol == "-le"){
+            double num1; 
+            double num2;
+            try{
+                num1 = stod(str1);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            try{
+                num2 = stod(str2);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            if(num1 <= num2) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }else if(symbol == "-lt"){
+            double num1; 
+            double num2;
+            try{
+                num1 = stod(str1);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            try{
+                num2 = stod(str2);
+            }catch (const invalid_argument& e) {
+                stringstream sss;
+                sss << "Invalid argument: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }catch (const out_of_range& e) {
+                stringstream sss;
+                sss << "Out of range: " << e.what() << endl;
+                printmessage("", sss.str(), 1);
+                return;
+            }
+            if(num1 < num2) printmessage("true\n", "", 0);
+            else printmessage("false\n", "", 0);
+        }
+        //未定义
+        else{
+            printmessage("", "Error! Command not found.\n", 1);
+        }
+    }else{
+        printmessage("", "Error! Wrong parameter.\n", 1);
+    }
     return;
 }
