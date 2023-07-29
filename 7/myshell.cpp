@@ -99,12 +99,23 @@ void initshell(int Argc, char * Argv[]){
     pwd = getenv("PWD");  //获得当前路径
 
     helppath = pwd + "/help"; //获得帮助路径
-    myshellpath = pwd + "/myshell";//获得myshell路径
 
     //参数复制
     argc = Argc;
     for(int i = 0; i < Argc; i++){
         argv[i] = Argv[i];
+    }
+
+    char buffer[PATH_MAX];
+    ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
+    if (len != -1) {
+        buffer[len] = '\0';
+        myshellpath = buffer;
+        cout << getenv("SHELL");
+        setenv("SHELL", buffer, 1);
+        cout << getenv("SHELL");
+    } else {
+        perror("Error while getting program path");
     }
 
     //如果有两个参数，那就是正常进入
@@ -905,3 +916,6 @@ void my_outer(string cmd[], int argnum){
     }
     return;
 }
+
+
+
