@@ -36,6 +36,14 @@ int state;
 //输出
 string output;      //正常输出
 string operror;     //错误信息
+//重定向
+int InputAtterminal;    //输入在终端
+int OutputAtterminal;   //输出在终端
+//输入输出缓冲
+char buf[1024];   
+//终端的输入输出的文件标识符
+int terinput;
+int teroutput;  
 
 
 void initshell(int Argc, char *Argv[]);
@@ -55,7 +63,6 @@ void my_help(string cmd[], int argnum);
 void my_umask(string cmd[], int argnum);
 void my_exec(string cmd[], int argnum);
 void my_test(string cmd[], int argnum);
-
 void my_outer(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
@@ -64,17 +71,34 @@ int main(int Argc, char *Argv[]){
     while(flag){
         //打印提示
         //如果路径中包含主目录，则替换成～
-        string cur_path = pwd;
-        size_t pos = pwd.find(homepath);
-        if(pos != string::npos){
-            cur_path.erase(pos, homepath.length());
-            cur_path = "~" + cur_path;
+        if(InputAtterminal){
+            string cur_path = pwd;
+            size_t pos = pwd.find(homepath);
+            if(pos != string::npos){
+                cur_path.erase(pos, homepath.length());
+                cur_path = "~" + cur_path;
+            }
+            sprintf(buf, "\033[36m%s@%s: \033[33m%s$ \033[?25h", username.c_str(), hostname.c_str(), cur_path.c_str());
+            string print = buf;
+            write(teroutput, print.c_str(), print.length());
         }
-        printf("\033[36m%s@%s: \033[33m%s$ \033[?25h", username.c_str(), hostname.c_str(), cur_path.c_str());
-
+        
         //存储命令
-        string command;
-        getline(cin, command);  //读入以换行为末尾的指令
+        char command[1024];
+        //getline(cin, command);  //读入以换行为末尾的指令
+        int i = 0;
+        while(1){
+            ssize_t ret = read(STDIN_FILENO, command + i, 1);
+            if(ret <= 0){
+                flag = 0;
+                break;
+            }else if(command[i] == '\n'){
+                command[i] = '\0';
+                break;
+            }
+            i++;
+        }
+        
         istringstream input(command);
         vector<string> cmd;
         string word;
@@ -121,9 +145,42 @@ void initshell(int Argc, char * Argv[]){
         perror("Error while getting program path");
     }
 
-    //如果有两个参数，那就是正常进入
-    if(Argc == 2){
+    //表示输入在终端中
+    InputAtterminal = 1;
 
+    //设置终端输入输出的位置
+    terinput = open("/dev/tty", O_RDONLY);
+    teroutput = open("/dev/tty", O_WRONLY);
+
+    //如果有一个参数，那就是正常进入，若两个或以上就要进行询问
+    if(argc >= 2){
+        //读入用户的选择
+        cout << "Is the '" << argv[1] << "' an input file?[Y/n] ";
+        string ans;
+        cin >> ans;
+        while(!(ans == "Y" || ans == "n" || ans == "y")){
+            cout << "Please type in your answar again: ";
+            cin >> ans;
+        }
+
+        //根据用户的选择进行相应的重定向
+        if(ans == "Y" || ans == "y"){
+            int fd = open(argv[1].c_str(), O_RDONLY);
+            if (fd < 0) {
+                //若无法打开文件 则退出
+                perror("Error");
+                exit(0);
+            }else{
+                //若能够打开文件，输入重定向为该文件
+                // 复制文件描述符 fd 到标准输入（文件描述符 0）
+                if (dup2(fd, STDIN_FILENO) < 0) {
+                    perror("Error");
+                    exit(0);
+                }
+            }
+            close(fd); // 关闭原来的文件描述符
+            InputAtterminal = 0;
+        }
     }
 
     return;
@@ -164,7 +221,9 @@ void printmessage(string mes1, string mes2, int cur_state){
     output = mes1;
     operror = mes2;
     state = cur_state;
-    printf("%s%s", output.c_str(), operror.c_str());
+    //printf("%s%s", output.c_str(), operror.c_str());
+    string total = mes1 + mes2;
+    write(teroutput, total.c_str(), total.length());
     return;
 }
 
@@ -948,6 +1007,4 @@ void my_outer(string cmd[], int argnum){
     }
     return;
 }
-
-
 

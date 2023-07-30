@@ -1,0 +1,3 @@
+help echo
+echo $HOME
+test $HOME = /Users/zhz
