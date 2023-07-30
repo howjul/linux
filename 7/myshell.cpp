@@ -84,7 +84,7 @@ int main(int Argc, char *Argv[]){
                 cur_path.erase(pos, homepath.length());
                 cur_path = "~" + cur_path;
             }
-            sprintf(buf, "\033[36m%s@%s: \033[33m%s$ \033[?25h", username.c_str(), hostname.c_str(), cur_path.c_str());
+            snprintf(buf, sizeof(buf), "\033[36m%s@%s: \033[33m%s$ \033[?25h", username.c_str(), hostname.c_str(), cur_path.c_str());
             string print = buf;
             write(teroutput, print.c_str(), print.length());
         }
@@ -240,7 +240,7 @@ void analyze(string cmd[], int argnum){
             }
             Outfilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
-            int Outfd = open(Outfilepath.c_str(), );////////////////////////打开模式？
+            int Outfd = open(Outfilepath.c_str(), O_RDWR|O_CREAT|O_TRUNC, 0666);
             if(Outfd < 0){
                 printmessage("", "Error! No such output file.\n", 1);
                 break;
@@ -263,7 +263,7 @@ void analyze(string cmd[], int argnum){
             }
             Errfilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
-            int Errfd = open(Errfilepath.c_str(), );////////////////////////
+            int Errfd = open(Errfilepath.c_str(), O_RDWR|O_CREAT|O_TRUNC, 0666);
             if(Errfd < 0){
                 printmessage("", "Error! No such error output file.\n", 1);
                 break;
@@ -286,7 +286,7 @@ void analyze(string cmd[], int argnum){
             }
             Outfilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
-            int Outfd = open(Outfilepath.c_str(), );////////////////////////打开模式？
+            int Outfd = open(Outfilepath.c_str(), O_RDWR|O_CREAT|O_APPEND, 0666);
             if(Outfd < 0){
                 printmessage("", "Error! No such output file.\n", 1);
                 break;
@@ -309,7 +309,7 @@ void analyze(string cmd[], int argnum){
             }
             Errfilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
-            int Errfd = open(Errfilepath.c_str(), );////////////////////////
+            int Errfd = open(Errfilepath.c_str(), O_RDWR|O_CREAT|O_APPEND, 0666);
             if(Errfd < 0){
                 printmessage("", "Error! No such error output file.\n", 1);
                 break;
@@ -372,7 +372,7 @@ void printmessage(string mes1, string mes2, int cur_state){
     state = cur_state;
     //printf("%s%s", output.c_str(), operror.c_str());
     write(STDOUT_FILENO, output.c_str(), output.length());
-    write(STDERR_FILENO, output.c_str(), output.length());
+    write(STDERR_FILENO, operror.c_str(), operror.length());
     return;
 }
 
