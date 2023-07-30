@@ -39,6 +39,12 @@ string operror;     //错误信息
 //重定向
 int InputAtterminal;    //输入在终端
 int OutputAtterminal;   //输出在终端
+string Infilepath;         //输入重定向文件
+string Outfilepath;        //输出重定向文件
+string Errfilepath;        //错误重定向文件
+int ReIn;               //是否有输入重定向
+int ReOut;              //是否有输出重定向
+int ReErr;              //是否有错误重定向
 //输入输出缓冲
 char buf[1024];   
 //终端的输入输出的文件标识符
@@ -187,34 +193,177 @@ void initshell(int Argc, char * Argv[]){
 }
 
 void analyze(string cmd[], int argnum){
-    if(cmd[0] == "cd"){
-        my_cd(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "dir"){
-        my_dir(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "clr"){
-        my_clr(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "echo"){
-        my_echo(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "pwd"){
-        my_pwd(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "exit"){
-        my_exit(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "time"){
-        my_time(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "set"){
-        my_set(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "help"){
-        my_help(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "umask"){
-        my_umask(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "exec"){
-        my_exec(cmd + 1, argnum - 1);
-    }else if(cmd[0] == "test"){
-        my_test(cmd + 1, argnum - 1);
-    }else{
-        my_outer(cmd, argnum);
+    //保存开始的输入和输出流
+    int oriin = dup(STDIN_FILENO);
+    int oriout = dup(STDOUT_FILENO);
+    int orierr = dup(STDERR_FILENO);
+    //先把重定向标志位置0
+    ReIn = 0;
+    ReOut = 0;
+    ReErr = 0;
+    //把路径重置为空字符串
+    Infilepath = "";
+    Outfilepath = "";
+    Errfilepath = "";
+    //遍历参数寻找重定向符号
+    for(int i = 0; i < argnum; i++){
+        //输入重定向
+        if(cmd[i] == "<" || cmd[i] == "0<"){
+            //获取参数路径，如果有多个，则报错
+            ReIn = 1;
+            if(Infilepath.length() != 0){
+                printmessage("", "Error! Too much file for input.\n", 1);
+                break;
+            }
+            Infilepath = cmd[i+1];
+            //打开路径对应的文件，如果打不开则报错
+            int Infd = open(Infilepath.c_str(), O_RDONLY);
+            if(Infd < 0){
+                printmessage("", "Error! No such input file.\n", 1);
+                break;
+            }
+            //把输入流重定向为对应文件
+            if(dup2(Infd, STDIN_FILENO) < 0){
+                printmessage("", "Error! Infd -> STDIN_FILENO dup2 failed.\n", 1);
+                break;
+            }
+            close(Infd);
+            if(argnum > i) argnum = i;////////////////////////个数验证
+        }
+        //输出重定向
+        if(cmd[i] == ">" || cmd[i] == "1>"){
+            //获取参数路径，如果有多个，则报错
+            ReOut = 1;
+            if(Outfilepath.length() != 0){
+                printmessage("", "Error! Too much file for output.\n", 1);
+                break;
+            }
+            Outfilepath = cmd[i+1];
+            //打开路径对应的文件，如果打不开则报错
+            int Outfd = open(Outfilepath.c_str(), );////////////////////////打开模式？
+            if(Outfd < 0){
+                printmessage("", "Error! No such output file.\n", 1);
+                break;
+            }
+            //把输入流重定向为对应文件
+            if(dup2(Outfd, STDOUT_FILENO) < 0){
+                printmessage("", "Error! Outfd -> STDOUT_FILENO dup2 failed.\n", 1);
+                break;
+            }
+            close(Outfd);
+            if(argnum > i) argnum = i;
+        }
+
+        if(cmd[i] == "2>"){
+            //获取参数路径，如果有多个，则报错
+            ReErr = 1;
+            if(Errfilepath.length() != 0){
+                printmessage("", "Error! Too much file for error output.\n", 1);
+                break;
+            }
+            Errfilepath = cmd[i+1];
+            //打开路径对应的文件，如果打不开则报错
+            int Errfd = open(Errfilepath.c_str(), );////////////////////////
+            if(Errfd < 0){
+                printmessage("", "Error! No such error output file.\n", 1);
+                break;
+            }
+            //把输入流重定向为对应文件
+            if(dup2(Errfd, STDERR_FILENO) < 0){
+                printmessage("", "Error! Errfd -> STDERR_FILENO dup2 failed.\n", 1);
+                break;
+            }
+            close(Errfd);
+            if(argnum > i) argnum = i;
+        }
+        //输出重定向，追加
+        if(cmd[i] == ">>" || cmd[i] == "1>>"){
+            //获取参数路径，如果有多个，则报错
+            ReOut = 1;
+            if(Outfilepath.length() != 0){
+                printmessage("", "Error! Too much file for output.\n", 1);
+                break;
+            }
+            Outfilepath = cmd[i+1];
+            //打开路径对应的文件，如果打不开则报错
+            int Outfd = open(Outfilepath.c_str(), );////////////////////////打开模式？
+            if(Outfd < 0){
+                printmessage("", "Error! No such output file.\n", 1);
+                break;
+            }
+            //把输入流重定向为对应文件
+            if(dup2(Outfd, STDOUT_FILENO) < 0){
+                printmessage("", "Error! Outfd -> STDOUT_FILENO dup2 failed.\n", 1);
+                break;
+            }
+            close(Outfd);
+            if(argnum > i) argnum = i;
+        }
+
+        if(cmd[i] == "2>"){
+            //获取参数路径，如果有多个，则报错
+            ReErr = 1;
+            if(Errfilepath.length() != 0){
+                printmessage("", "Error! Too much file for error output.\n", 1);
+                break;
+            }
+            Errfilepath = cmd[i+1];
+            //打开路径对应的文件，如果打不开则报错
+            int Errfd = open(Errfilepath.c_str(), );////////////////////////
+            if(Errfd < 0){
+                printmessage("", "Error! No such error output file.\n", 1);
+                break;
+            }
+            //把输入流重定向为对应文件
+            if(dup2(Errfd, STDERR_FILENO) < 0){
+                printmessage("", "Error! Errfd -> STDERR_FILENO dup2 failed.\n", 1);
+                break;
+            }
+            close(Errfd);
+            if(argnum > i) argnum = i;
+        }
     }
-    return ;
+
+    //如果之前的重定向没有报错，那么正常进行解析
+    if(state == 0){
+        if(cmd[0] == "cd"){
+            my_cd(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "dir"){
+            my_dir(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "clr"){
+            my_clr(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "echo"){
+            my_echo(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "pwd"){
+            my_pwd(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "exit"){
+            my_exit(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "time"){
+            my_time(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "set"){
+            my_set(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "help"){
+            my_help(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "umask"){
+            my_umask(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "exec"){
+            my_exec(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "test"){
+            my_test(cmd + 1, argnum - 1);
+        }else{
+            my_outer(cmd, argnum);
+        }
+    }
+    
+    //保恢复开始的输入输出和错误流
+    dup2(oriin, STDIN_FILENO);
+    dup2(oriout, STDOUT_FILENO);
+    dup2(orierr, STDERR_FILENO);
+    //关闭刚开始的三个文件
+    close(oriin);
+    close(oriout);
+    close(orierr);
+    return;
 }
 
 void printmessage(string mes1, string mes2, int cur_state){
@@ -222,8 +371,8 @@ void printmessage(string mes1, string mes2, int cur_state){
     operror = mes2;
     state = cur_state;
     //printf("%s%s", output.c_str(), operror.c_str());
-    string total = mes1 + mes2;
-    write(teroutput, total.c_str(), total.length());
+    write(STDOUT_FILENO, output.c_str(), output.length());
+    write(STDERR_FILENO, output.c_str(), output.length());
     return;
 }
 
