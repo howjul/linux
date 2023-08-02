@@ -8,6 +8,7 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include <signal.h>
 #include <dirent.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -57,6 +58,10 @@ struct task{
     vector<string> cmd;
 };
 vector<struct task> jobs;
+//子进程
+pid_t sonpid;
+//当前前台正在执行的指令
+vector<string> curcmd;
 
 
 void initshell(int Argc, char *Argv[]);
@@ -65,6 +70,7 @@ void pipeanalyze(string cmd[], int argnum);
 void analyze(string cmd[], int argnum);
 void printmessage(string mes1, string mes2, int cur_state);
 string explainpara(string input);
+void signal_handler(int signal);
 
 void my_cd(string cmd[], int argnum);
 void my_dir(string cmd[], int argnum);
@@ -219,10 +225,20 @@ void initshell(int Argc, char * Argv[]){
         }
     }
 
+    //表示目前没有子进程
+    sonpid = -1;
+
+    //绑定信号处理函数
+    signal(SIGTSTP, signal_handler);//挂起
+
     return;
 }
 
 void back(string cmd[], int argnum){
+    //设置当前指令的命令
+    curcmd.clear();
+    for(int i = 0; i < argnum; i++) curcmd.push_back(cmd[i]);
+
     if(argnum > 0 && cmd[argnum - 1] == "&"){
         //进程到后台执行
         pid_t son = fork();
@@ -232,6 +248,7 @@ void back(string cmd[], int argnum){
         }
         if(son == 0){
             //子进程进入后台运行
+            setpgid(0, 0);
             analyze(cmd, argnum - 1);
             // if(InputAtterminal){
             //         stringstream ss;
@@ -435,6 +452,10 @@ void analyze(string cmd[], int argnum){
             my_test(cmd + 1, argnum - 1);
         }else if(cmd[0] == "jobs"){
             my_jobs(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "fg"){
+            my_fg(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "bg"){
+            my_bg(cmd + 1, argnum - 1);
         }else{
             my_outer(cmd, argnum);
         }
@@ -1224,6 +1245,7 @@ void my_test(string cmd[], int argnum){
 
 void my_outer(string cmd[], int argnum){
     pid_t son = fork();
+    sonpid = son;
     if(son < 0){
         //子进程调用失败
         printmessage("", "Error! Fork failed.\n", 1);
@@ -1236,7 +1258,8 @@ void my_outer(string cmd[], int argnum){
         printmessage("", "Error! Cannot execute the command.\n", 1);
         exit(0);
     }else{//父进程
-        waitpid(son, NULL, 0);
+        while (sonpid != -1 && !waitpid(sonpid, NULL, WNOHANG));
+        sonpid = -1;
         printmessage("",  "", 0);
     }
     return;
@@ -1264,9 +1287,164 @@ void my_jobs(string cmd[], int argnum){
 }
 
 void my_fg(string cmd[], int argnum){
+    //若参数个数错误则直接报错退出
+    if(argnum != 1){
+        printmessage("", "Error! Wrong parameter number.\n", 1);
+        return;
+    }
+    //检查参数是否能够转化为数字
+    double num; 
+    try{
+        num = stoi(cmd[0]);
+    }catch (const invalid_argument& e) {
+        stringstream sss;
+        sss << "Invalid argument: " << e.what() << endl;
+        printmessage("", sss.str(), 1);
+        return;
+    }catch (const out_of_range& e) {
+        stringstream sss;
+        sss << "Out of range: " << e.what() << endl;
+        printmessage("", sss.str(), 1);
+        return;
+    }
+    //检查参数是否在范围内
+    num--;
+    if(!(num >= 0 && num < jobs.size())){
+        printmessage("", "Error! Out of range.\n", 1);
+        return;
+    }
+    
+    //参数检查通过，打印目标指令
+    if(InputAtterminal){
+        stringstream ss;
+        for(vector<string>::iterator j = jobs[num].cmd.begin(); j < jobs[num].cmd.end(); j++){
+            ss << *j << " ";
+        }
+        ss << endl;
+        string o = ss.str();
+        write(STDOUT_FILENO, o.c_str(), o.length());
+    }
+
+    //从jobs表中删除
+    jobs.erase(jobs.begin() + num);
+    setpgid(jobs[num].pid, getpid());
+
+    //进行具体操作
+    if(jobs[num].state == 1){
+        //若进程被挂起，则向其发送SIGCONT信号并调⽤waitpid等待其结束
+        kill(jobs[num].pid, SIGCONT);
+        sonpid = jobs[num].pid;
+        while (sonpid != -1 && !waitpid(sonpid, NULL, WNOHANG));
+        sonpid = -1;
+    }else if(jobs[num].state == 2){
+        //若进程在后台运⾏，直接调⽤waitpid等待其结束
+        sonpid = jobs[num].pid;
+        while (sonpid != -1 && !waitpid(sonpid, NULL, WNOHANG)); 
+        sonpid = -1;
+    }
+
     return;
 }
 
 void my_bg(string cmd[], int argnum){
+    //若参数个数错误则直接报错退出
+    if(argnum != 1 && argnum != 0){
+        printmessage("", "Error! Wrong parameter number.\n", 1);
+        return;
+    }
+
+    //若没有参数，则打印后台运行的进程
+    if(argnum == 0){
+        string out = "";
+        stringstream ss;
+        for(vector<struct task>::iterator i = jobs.begin(); i < jobs.end(); i++){
+            if((*i).state == 2){
+                ss << "[" << i - jobs.begin() + 1 << "]" << "\t" << (*i).pid << "\t";
+                ss << "running" << "\t";
+                for(vector<string>::iterator j = (*i).cmd.begin(); j < (*i).cmd.end(); j++){
+                ss << *j << " ";
+            }
+            ss << endl;
+            }
+        }
+        out = ss.str(); 
+        write(STDOUT_FILENO, out.c_str(), out.length());
+        return;
+    }
+
+    //若有一个参数，则将这个进程转移⾄后台运⾏
+    //检查参数是否能够转化为数字
+    double num; 
+    try{
+        num = stoi(cmd[0]);
+    }catch (const invalid_argument& e) {
+        stringstream sss;
+        sss << "Invalid argument: " << e.what() << endl;
+        printmessage("", sss.str(), 1);
+        return;
+    }catch (const out_of_range& e) {
+        stringstream sss;
+        sss << "Out of range: " << e.what() << endl;
+        printmessage("", sss.str(), 1);
+        return;
+    }
+    //检查参数是否在范围内
+    num--;
+    if(!(num >= 0 && num < jobs.size())){
+        printmessage("", "Error! Out of range.\n", 1);
+        return;
+    }
+
+    if(jobs[num].state == 2){
+        printmessage("", "Job is already running.\n", 1);
+        return;
+    }
+    
+    //参数检查通过，打印目标指令
+    if(InputAtterminal){
+        stringstream ss;
+        for(vector<string>::iterator j = jobs[num].cmd.begin(); j < jobs[num].cmd.end(); j++){
+            ss << *j << " ";
+        }
+        ss << "&" << endl;
+        string o = ss.str();
+        write(STDOUT_FILENO, o.c_str(), o.length());
+    }
+
+    //进行具体操作
+    //恢复运行
+    kill(jobs[num].pid, SIGCONT);
+    //修改jobs表格
+    jobs[num].state = 2;
+
     return;
+}
+
+void signal_handler(int signal){
+    if(signal == SIGTSTP){
+        if(kill(sonpid, SIGSTOP) != 0){
+            stringstream ss;
+            ss << "pid:" << sonpid << "suspended failed" << endl;
+            string o = ss.str();
+            write(STDERR_FILENO, o.c_str(), o.length());
+        }
+
+        struct task curjob;
+        curjob.pid = sonpid;
+        setpgid(sonpid, 0);
+        curjob.state = 1;
+        for(int i = 0; i < curcmd.size(); i++){
+            curjob.cmd.push_back(curcmd[i]);
+        }
+        string print("hello");
+        jobs.push_back(curjob);
+        if(InputAtterminal){
+            stringstream ss;
+            ss << "[" << jobs.size() << "]" << "\t" << curjob.pid << "\t" << "suspend" << endl;
+            string print = ss.str();
+            write(teroutput,print.c_str(), print.length());
+        }
+
+        sonpid = -1;
+    }
 }
