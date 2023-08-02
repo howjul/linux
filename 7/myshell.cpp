@@ -78,6 +78,9 @@ void my_help(string cmd[], int argnum);
 void my_umask(string cmd[], int argnum);
 void my_exec(string cmd[], int argnum);
 void my_test(string cmd[], int argnum);
+void my_jobs(string cmd[], int argnum);
+void my_fg(string cmd[], int argnum);
+void my_bg(string cmd[], int argnum);
 void my_outer(string cmd[], int argnum);
 
 int main(int Argc, char *Argv[]){
@@ -89,7 +92,7 @@ int main(int Argc, char *Argv[]){
             if(waitpid(jobs[i].pid, NULL, WNOHANG) == jobs[i].pid && jobs[i].state != 0){
                 if(InputAtterminal){
                     stringstream ss;
-                    ss << "[" << i << "]" << "\t" << jobs[i].pid << "\t";
+                    ss << "[" << i + 1 << "]" << "\t" << jobs[i].pid << "\t";
                     ss << "done" << "\t";
                     for(vector<string>::iterator j = jobs[i].cmd.begin(); j < jobs[i].cmd.end(); j++){
                         ss << *j << " ";
@@ -430,6 +433,8 @@ void analyze(string cmd[], int argnum){
             my_exec(cmd + 1, argnum - 1);
         }else if(cmd[0] == "test"){
             my_test(cmd + 1, argnum - 1);
+        }else if(cmd[0] == "jobs"){
+            my_jobs(cmd + 1, argnum - 1);
         }else{
             my_outer(cmd, argnum);
         }
@@ -1237,3 +1242,31 @@ void my_outer(string cmd[], int argnum){
     return;
 }
 
+void my_jobs(string cmd[], int argnum){
+    string out = "";
+    //write(STDOUT_FILENO, out.c_str(), out.length());
+    stringstream ss;
+    for(vector<struct task>::iterator i = jobs.begin(); i < jobs.end(); i++){
+        ss << "[" << i - jobs.begin() + 1 << "]" << "\t" << (*i).pid << "\t";
+        switch((*i).state){
+            case 0: ss << "done" << "\t"; break;
+            case 1: ss << "suspend" << "\t"; break;
+            case 2: ss << "running" << "\t"; break;
+        }
+        for(vector<string>::iterator j = (*i).cmd.begin(); j < (*i).cmd.end(); j++){
+            ss << *j << " ";
+        }
+        ss << endl;
+    }
+    out = ss.str(); 
+    write(STDOUT_FILENO, out.c_str(), out.length());
+    return;
+}
+
+void my_fg(string cmd[], int argnum){
+    return;
+}
+
+void my_bg(string cmd[], int argnum){
+    return;
+}
