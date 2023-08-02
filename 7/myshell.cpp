@@ -50,9 +50,18 @@ char buf[1024];
 //终端的输入输出的文件标识符
 int terinput;
 int teroutput;  
+//后台进程
+struct task{
+    int pid;    //pid
+    int state;  //0-done,1-suspand,2-running
+    vector<string> cmd;
+};
+vector<struct task> jobs;
 
 
 void initshell(int Argc, char *Argv[]);
+void back(string cmd[], int argnum);
+void pipeanalyze(string cmd[], int argnum);
 void analyze(string cmd[], int argnum);
 void printmessage(string mes1, string mes2, int cur_state);
 string explainpara(string input);
@@ -75,6 +84,24 @@ int main(int Argc, char *Argv[]){
     initshell(Argc, Argv);
     int flag = 1;
     while(flag){
+        //判断是否有子进程结束
+        for(int i = 0; i < jobs.size(); i++){
+            if(waitpid(jobs[i].pid, NULL, WNOHANG) == jobs[i].pid && jobs[i].state != 0){
+                if(InputAtterminal){
+                    stringstream ss;
+                    ss << "[" << i << "]" << "\t" << jobs[i].pid << "\t";
+                    ss << "done" << "\t";
+                    for(vector<string>::iterator j = jobs[i].cmd.begin(); j < jobs[i].cmd.end(); j++){
+                        ss << *j << " ";
+                    }
+                    ss << endl;
+                    string out = ss.str();
+                    write(teroutput, out.c_str(), out.length());
+                }
+                jobs.erase(jobs.begin() + i);
+            }
+        }
+
         //打印提示
         //如果路径中包含主目录，则替换成～
         if(InputAtterminal){
@@ -112,7 +139,7 @@ int main(int Argc, char *Argv[]){
 
         //解析命令
         state = 0;
-        analyze(cmd.data(), cmd.size());
+        back(cmd.data(), cmd.size());
     }
     return 0;
 }
@@ -188,6 +215,59 @@ void initshell(int Argc, char * Argv[]){
             InputAtterminal = 0;
         }
     }
+
+    return;
+}
+
+void back(string cmd[], int argnum){
+    if(argnum > 0 && cmd[argnum - 1] == "&"){
+        //进程到后台执行
+        pid_t son = fork();
+        if(son < 0){
+            printmessage("", "Error! Fork failed", 1);
+            return;
+        }
+        if(son == 0){
+            //子进程进入后台运行
+            analyze(cmd, argnum - 1);
+            // if(InputAtterminal){
+            //         stringstream ss;
+            //         ss << endl << "[" << jobs.size() << "]" << "\t" << getpid() << "\t";
+            //         ss << "done" << "\t";
+            //         for(int j = 0; j < argnum - 1; j++){
+            //             ss << cmd[j] << " ";
+            //         }
+            //         ss << endl;
+            //         string out = ss.str();
+            //         write(teroutput, out.c_str(), out.length());
+            //     }
+            exit(0);
+        }
+        if(son > 0){
+            //父进程
+            struct task curjob;
+            curjob.pid = son;
+            curjob.state = 2;
+            for(int i = 0; i < argnum - 1; i++){
+                curjob.cmd.push_back(cmd[i]);
+            }
+            string print("hello");
+            jobs.push_back(curjob);
+            if(InputAtterminal){
+                stringstream ss;
+                ss << "[" << jobs.size() << "]" << "\t" << curjob.pid << endl;
+                string print = ss.str();
+                write(teroutput,print.c_str(), print.length());
+            }
+        }
+    }else{
+        //否则正常执行指令
+        analyze(cmd, argnum);
+    }
+    return;
+}
+
+void pipeanalyze(string cmd[], int argnum){
 
     return;
 }
