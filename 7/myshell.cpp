@@ -250,17 +250,6 @@ void back(string cmd[], int argnum){
             //子进程进入后台运行
             setpgid(0, 0);
             analyze(cmd, argnum - 1);
-            // if(InputAtterminal){
-            //         stringstream ss;
-            //         ss << endl << "[" << jobs.size() << "]" << "\t" << getpid() << "\t";
-            //         ss << "done" << "\t";
-            //         for(int j = 0; j < argnum - 1; j++){
-            //             ss << cmd[j] << " ";
-            //         }
-            //         ss << endl;
-            //         string out = ss.str();
-            //         write(teroutput, out.c_str(), out.length());
-            //     }
             exit(0);
         }
         if(son > 0){
@@ -282,17 +271,164 @@ void back(string cmd[], int argnum){
         }
     }else{
         //否则正常执行指令
-        analyze(cmd, argnum);
+        pipeanalyze(cmd, argnum);
     }
     return;
 }
 
 void pipeanalyze(string cmd[], int argnum){
+    pid_t curpid;
+
+    //先扫描一遍，记录所有的管道的位置
+    int pipepos[argnum];
+    int pipenum = 0;
+    for(int i = 0; i < argnum; i++){
+        if(cmd[i] == "|"){
+            pipepos[pipenum++] = i;
+        }
+    }
+
+    //如果没有，则直接调用解析单条指令的函数
+    if(pipenum == 0){
+        analyze(cmd, argnum);
+        return;
+    }
+
+    //如果有管道
+    sonpid = fork();
+    if(sonpid){//父进程
+        while (sonpid != -1 && !waitpid(sonpid, NULL, WNOHANG)); 
+        sonpid = -1;
+    }else{//子进程
+        int oriin = dup(STDIN_FILENO);
+        int oriout = dup(STDOUT_FILENO);
+        char buffer[1024];
+        int pipe1[2];
+        int pipe2[2];
+
+        //只有一个管道
+        if(pipenum == 1){
+            pipe(pipe1);
+            pid_t cursonpid[pipenum + 1];
+
+            for(int i = 0; i < pipenum + 1; i++){
+                cursonpid[i] = fork();
+                if(cursonpid[i] == 0){
+                    //子进程
+                    if(i == 0){
+                        //第一条指令输入到stdin
+                        close(pipe1[0]);
+                        //dup2(oriin, STDIN_FILENO);
+                        dup2(pipe1[1], STDOUT_FILENO);
+                        close(pipe1[1]);
+
+                        analyze(cmd, pipepos[0]);
+                        exit(0);
+                    }else if(i == pipenum){
+                        //最后一条指令输出到stdout
+                        close(pipe1[1]);//关闭写入端
+                        dup2(pipe1[0], STDIN_FILENO);
+                        //dup2(oriout, STDOUT_FILENO);
+                        close(pipe1[0]);  
+
+                        analyze(cmd + pipepos[0] + 1, argnum - pipepos[0] - 1);
+                        exit(0);
+                    }
+                }
+            }
+
+            //父进程一定要关闭管道，不然永远子进程永远无法结束！
+            close(pipe1[0]); 
+            close(pipe1[1]); 
+
+            //等待所有子进程结束
+            for(int i = 0; i < pipenum + 1; i++){
+                waitpid(cursonpid[i], NULL, 0);
+            }
+
+            exit(0);
+        }else if(pipenum >= 2){
+            //有两个以上的管道
+            pipe(pipe1);
+            pipe(pipe2);
+            pid_t cursonpid[pipenum + 1];
+
+            for(int i = 0; i < pipenum + 1; i++){
+                cursonpid[i] = fork();
+                if(cursonpid[i] == 0){
+                    //子进程
+                    if(i == 0){
+                        //第一条指令输入到stdin
+                        close(pipe1[0]);
+                        close(pipe2[0]);
+                        close(pipe2[1]);
+
+                        dup2(pipe1[1], STDOUT_FILENO);
+                        close(pipe1[1]);
+
+                        analyze(cmd, pipepos[i]);
+                        exit(0);
+                    }else if(i == pipenum){
+                        //最后一条指令输出到stdout
+                        close(pipe1[1]);//关闭写入端
+                        close(pipe1[0]);
+                        close(pipe2[1]);
+                        
+                        dup2(pipe2[0], STDIN_FILENO);
+                        close(pipe2[0]);  
+
+                        analyze(cmd + pipepos[pipenum - 1] + 1, argnum - pipepos[pipenum - 1] - 1);
+                        exit(0);
+                    }else{
+                        //中间的指令，输入来自上一个指令的输出，同时输出到下一个指令的输入
+                        close(pipe1[1]);
+                        close(pipe2[0]);
+
+                        dup2(pipe1[0], STDIN_FILENO);   //从pipe1读入数据
+                        dup2(pipe2[1], STDOUT_FILENO);  //从pipe2输出数据
+                        dup2(pipe2[1], pipe1[1]);
+
+                        close(pipe1[0]);
+                        close(pipe2[1]);
+
+                        analyze(cmd + pipepos[i - 1] + 1, pipepos[i] - pipepos[i - 1] - 1);
+                        exit(0);
+                    }
+                }
+            }
+
+            //父进程一定要关闭管道，不然永远子进程永远无法结束！
+            close(pipe1[0]); 
+            close(pipe1[1]); 
+            close(pipe2[0]); 
+            close(pipe2[1]); 
+
+            //等待所有子进程结束
+            for(int i = 0; i < pipenum + 1; i++){
+                waitpid(cursonpid[i], NULL, 0);
+            }
+
+            exit(0);
+        }
+
+        dup2(oriin,STDIN_FILENO);
+        dup2(oriout, STDOUT_FILENO);
+        _exit(0);
+    }
 
     return;
 }
 
 void analyze(string cmd[], int argnum){
+    // 打印当前运行的指令
+    stringstream ssss;
+    for(int i = 0; i < argnum; i++){
+        ssss << cmd[i] << " ";
+    }
+    ssss << 1 << endl;
+    string sssss = ssss.str();
+    write(teroutput, sssss.c_str(), sssss.length());
+
     //保存开始的输入和输出流
     int oriin = dup(STDIN_FILENO);
     int oriout = dup(STDOUT_FILENO);
