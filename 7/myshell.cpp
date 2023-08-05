@@ -420,14 +420,14 @@ void pipeanalyze(string cmd[], int argnum){
 }
 
 void analyze(string cmd[], int argnum){
-    // 打印当前运行的指令
-    stringstream ssss;
-    for(int i = 0; i < argnum; i++){
-        ssss << cmd[i] << " ";
-    }
-    ssss << 1 << endl;
-    string sssss = ssss.str();
-    write(teroutput, sssss.c_str(), sssss.length());
+    // // 打印当前运行的指令
+    // stringstream ssss;
+    // for(int i = 0; i < argnum; i++){
+    //     ssss << cmd[i] << " ";
+    // }
+    // ssss << 1 << endl;
+    // string sssss = ssss.str();
+    // write(teroutput, sssss.c_str(), sssss.length());
 
     //保存开始的输入和输出流
     int oriin = dup(STDIN_FILENO);
