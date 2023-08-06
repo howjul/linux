@@ -1381,6 +1381,7 @@ void my_test(string cmd[], int argnum){
 
 void my_outer(string cmd[], int argnum){
     pid_t son = fork();
+    int old_sonpid = sonpid;
     sonpid = son;
     if(son < 0){
         //子进程调用失败
@@ -1398,6 +1399,7 @@ void my_outer(string cmd[], int argnum){
         sonpid = -1;
         printmessage("",  "", 0);
     }
+    sonpid = old_sonpid;
     return;
 }
 
@@ -1461,23 +1463,34 @@ void my_fg(string cmd[], int argnum){
         write(STDOUT_FILENO, o.c_str(), o.length());
     }
 
-    //从jobs表中删除
-    jobs.erase(jobs.begin() + num);
-    setpgid(jobs[num].pid, getpid());
+    setpgid(jobs[num].pid, getgid());
 
     //进行具体操作
     if(jobs[num].state == 1){
         //若进程被挂起，则向其发送SIGCONT信号并调⽤waitpid等待其结束
+
+        stringstream ssss;
+        ssss << num << endl << jobs[num].pid << endl;
+        string sssss = ssss.str();
+        write(teroutput, sssss.c_str(), sssss.length());
+
         kill(jobs[num].pid, SIGCONT);
+        pid_t old_sonpid = sonpid;
         sonpid = jobs[num].pid;
         while (sonpid != -1 && !waitpid(sonpid, NULL, WNOHANG));
         sonpid = -1;
+        sonpid = old_sonpid;
     }else if(jobs[num].state == 2){
         //若进程在后台运⾏，直接调⽤waitpid等待其结束
+        pid_t old_sonpid = sonpid;
         sonpid = jobs[num].pid;
         while (sonpid != -1 && !waitpid(sonpid, NULL, WNOHANG)); 
         sonpid = -1;
+        sonpid = old_sonpid;
     }
+
+    //从jobs表中删除
+    jobs.erase(jobs.begin() + num);
 
     return;
 }
@@ -1558,6 +1571,7 @@ void my_bg(string cmd[], int argnum){
 
 void signal_handler(int signal){
     if(signal == SIGTSTP){
+        setpgid(sonpid, 0);
         if(kill(sonpid, SIGSTOP) != 0){
             stringstream ss;
             ss << "pid:" << sonpid << "suspended failed" << endl;
@@ -1567,7 +1581,6 @@ void signal_handler(int signal){
 
         struct task curjob;
         curjob.pid = sonpid;
-        setpgid(sonpid, 0);
         curjob.state = 1;
         for(int i = 0; i < curcmd.size(); i++){
             curjob.cmd.push_back(curcmd[i]);
