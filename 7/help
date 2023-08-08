@@ -1,82 +1,125 @@
-（cd
+>> cd
 用法：cd <directory>
-功能：把当前默认目录改变为<directory>。如果没有<directory>参数，则显示当前目录。如该目录不存在，会出现合适的错误信息。这个命令也可以改变PWD环境变量。   
+功能：把当前默认目录改变为<directory>。如果没有<directory>参数，则显示当前目录。如该目录不存在，会出现合适的错误信息。这个命令也可以改变PWD环境变量。
+- cd    #打印当前路径
+- cd ..   #进入父文件夹
 
-（dir
+>> dir
 用法：dir (<path>)
 功能：打印目录，无参数时打印当前目录。
+- dir   #打印当前目录
+- dir ../..   #打印祖父文件夹
+- dir ~   #打印家目录
+- dir /   #打印根目录
 
-（clr
+>> clr
 用法：clr
 功能：清空终端显示。
+- clr   #清空当前终端内容
 
-（echo
+>> echo
 用法：echo <comment>
 功能：在屏幕上显示<comment>并换行（多个空格和制表符可能被缩减为一个空格），如果输入变量例如"$1"或者环境变量"$HOME"等，则会进行相应的变量替换。
+- echo hello    #原样打印字符串
+- echo $# $HOME $0    #输出参数个数环境变量HOME和第零个参数
 
-（pwd
+>> pwd
 用法：pwd
 功能：在屏幕上显示当前所在的路径。
+- pwd   #显示当前路径
 
-（exit
+>> exit
 用法：exit
 功能：退出程序。
+- exit    #退出myshell
 
-（time
+>> time
 用法：time
 功能：打印出当地当前时间。
+- time    #打印当前时间，例如"2023年8月8日 Tue 18:17:58"
 
-（set
+>> set
 用法：set
-功能：打印出系统所有的环境变量。
+功能：若无参数直接输出所有的环境变量，若有参数则重置myshell启动参数。
+- set   #打印所有环境变量
+- set 2 3 4   #重置myshell初始参数为2 3 4
 
-（help
+>> help
 用法：help (<instruction>)
 功能：如果没有参数，则打印help整个文档；若有参数，则打印参数指明指令的帮助文档。
+- help    打印帮助文档
+- help test   打印test单条指令的帮助文档
 
-（umask
+>> umask
 用法：umask (<number>)
 功能：如果没有参数显示umask的值；若有参数，则把umask设置成输入的数字。
+- umask   #显示umask的值
+- umask 777   #把umask设置为0777
+- umask 77777   #超过四位报错
 
-（exec
-用法：exec 外部指令
-功能：使用exec来调用外部指令或者程序，只需按照指令原来的格式输入即可，比如`exec ls -l ..`。
+>> exec
+用法：exec <cmd>
+功能：使用exec来调用外部指令或者程序，只需按照指令原来的格式输入即可，注意使用这个指令之后，myshell会直接退出。
+- exec ls -l ..   #打印父文件夹详细目录
+- exec sleep 5    #睡眠5秒钟
 
-（test
+>> test
 用法：用于条件测试的命令，判断某些条件是否为真。
 功能：
 - 判断字符串
-test –n 字符串                      字符串的长度非零
-test –z 字符串                      字符串的长度为零
-test 字符串1 ＝ 字符串2              字符串相等
-test 字符串1 !＝ 字符串2             字符串不等
-- 判断数值
-test 整数1 –eq 整数2                        整数相等
-test 整数1 –ge 整数2                        整数1大于等于整数2
-test 整数1 –gt 整数2                        整数1大于整数2
-test 整数1 –le 整数2                        整数1小于等于整数2
-test 整数1 –lt 整数2                        整数1小于整数2
-test 整数1 –ne 整数2                        整数1不等于整数2
+test –n 字符串        字符串的长度非零
+test –z 字符串        字符串的长度为零
+test 字符串1 ＝  字符串2        字符串相等
+test 字符串1 !＝ 字符串2        字符串不等
+- 判断数值  
+test 整数1 –eq 整数2        整数相等
+test 整数1 –ge 整数2        整数1大于等于整数2
+test 整数1 –gt 整数2        整数1大于整数2
+test 整数1 –le 整数2        整数1小于等于整数2
+test 整数1 –lt 整数2        整数1小于整数2
+test 整数1 –ne 整数2        整数1不等于整数2
 - 判断文件
-test  File1 –ef  File2                            两个文件具有同样的设备号和i结点号
-test  File1 –nt  File2                            文件1比文件2 新
-test  File1 –ot  File2                            文件1比文件2 旧
-test –b File                                           文件存在并且是块设备文件
-test –c File                                           文件存在并且是字符设备文件
-test –d File                                           文件存在并且是目录
-test –e File                                           文件存在
-test –f File                                           文件存在并且是正规文件
-test –g File                                           文件存在并且是设置了组ID
-test –G File                                           文件存在并且属于有效组ID
-test –h File                                           文件存在并且是一个符号链接（同-L）
-test –k File                                           文件存在并且设置了sticky位
-test –b File                                           文件存在并且是块设备文件
-test –L File                                           文件存在并且是一个符号链接（同-h）
-test –o File                                           文件存在并且属于有效用户ID
-test –p File                                           文件存在并且是一个命名管道
-test –r File                                           文件存在并且可读
-test –s File                                           文件存在并且是一个套接字
-test –t FD                                             文件描述符是在一个终端打开的
-test –u File                                           文件存在并且设置了它的set-user-id位
-test –w File                                           文件存在并且可写
-test –x File                                           文件存在并且可执行
+test  File1 –ef  File2        两个文件具有同样的设备号和i结点号
+test  File1 –nt  File2        文件1比文件2 新
+test  File1 –ot  File2        文件1比文件2 旧
+test –b File        文件存在并且是块设备文件
+test –c File        文件存在并且是字符设备文件
+test –d File        文件存在并且是目录
+test –e File        文件存在
+test –f File        文件存在并且是正规文件
+test –g File        文件存在并且是设置了组ID
+test –G File        文件存在并且属于有效组ID
+test –h File        文件存在并且是一个符号链接（同-L）
+test –k File        文件存在并且设置了sticky位
+test –b File        文件存在并且是块设备文件
+test –L File        文件存在并且是一个符号链接（同-h）
+test –o File        文件存在并且属于有效用户ID
+test –p File        文件存在并且是一个命名管道
+test –r File        文件存在并且可读
+test –s File        文件存在并且是一个套接字
+test –t FD          文件描述符是在一个终端打开的
+test –u File        文件存在并且设置了它的set-user-id位
+test –w File        文件存在并且可写
+test –x File        文件存在并且可执行
+
+>> jobs
+用法：jobs
+功能：在屏幕上显示查看当前所有被挂起或后台运⾏的作业。
+- jobs   #显示后台进程信息
+
+>> fg
+用法：fg <num>
+功能：将被挂起或后台运⾏的作业转移⾄前台。
+- fg 1   #将被挂起或后台运⾏的jobs[0]任务移动到前台执行。
+
+>> bg
+用法：bg (<num>)
+功能：将被挂起的作业转移⾄后台运⾏，如果没有参数，则打印所有后台运行的进程。
+- bg  #打印所有后台进程信息
+- bg 1   #将被挂起的jobs[0]任务转移⾄后台运⾏。
+
+>> others
+用法：<cmd>
+功能：只需按照指令原来的格式输入即可，当myshell没有内部命令与之匹配时，会自动调用外部命令。与exec不同的是，这样不会退出myshell。
+- ls -l ..   #打印父文件夹详细目录
+- sleep 5    #睡眠5秒钟

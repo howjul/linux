@@ -324,6 +324,7 @@ void pipeanalyze(string cmd[], int argnum){
         sonpid = -1;
     }else{
         //子进程
+        signal(SIGTSTP, SIG_DFL);
         int oriin = dup(STDIN_FILENO);
         int oriout = dup(STDOUT_FILENO);
         char buffer[1024];
@@ -340,6 +341,7 @@ void pipeanalyze(string cmd[], int argnum){
                 cursonpid[i] = fork();
                 if(cursonpid[i] == 0){
                     //子进程
+                    signal(SIGTSTP, SIG_DFL);
                     if(i == 0){
                         //第一条指令输入到stdin
                         close(pipe1[0]);    //关闭pipe1读取端
@@ -700,15 +702,21 @@ string explainpara(string input){
     return output;
 }
 
+//如下为具体指令实现，具体功能见帮助文档
 void my_cd(string cmd[], int argnum){
+    //如果没有参数，则打印当前路径
     if (argnum == 0){
-        printmessage(pwd.c_str(), "", 0);
+        string printpwd = pwd + "\n";
+        printmessage(printpwd.c_str(), "", 0);
+        return;
     }
+
     //如果参数个数不为1，直接报错退出
     if (argnum != 1){
         printmessage("", "Error! Usage: cd <path>\n", 1);
         return;
     }
+
     //如果参数个数为1
     string path = cmd[0];
     //如果要回到主目录，需要预处理
@@ -771,6 +779,14 @@ void my_dir(string cmd[], int argnum){
             target = parent;
         }else if(cmd[0] == "~"){
             target = homepath;
+        }else if(cmd[0] == "/"){
+            //获取根文件夹
+            chdir(cmd[0].c_str());
+            char path_changed[1024];
+            getcwd(path_changed, 1024);
+            chdir(pwd.c_str());
+            string parent = path_changed;
+            target = parent;
         }
 
         //调用opendir打开文件夹
@@ -790,7 +806,7 @@ void my_dir(string cmd[], int argnum){
     //打印内容
     stringstream ss;
     while((ptr = readdir(dir)) != NULL){
-        ss << ptr->d_name << " ";
+        ss << ptr->d_name << "\t";
     }
     ss << endl;
     printmessage(ss.str(), "", 0);
@@ -802,10 +818,12 @@ void my_dir(string cmd[], int argnum){
 }
 
 void my_clr(string cmd[], int argnum){
+    //检查参数
     if (argnum > 0){
         printmessage("", "Error! Too much parameters.\n", 1);
         return;
     }
+    //直接使用system函数调用clear命令
     system("clear");
     state = 0;
     return;
@@ -822,27 +840,9 @@ void my_echo(string cmd[], int argnum){
     //打印主循环
     for(int i = 0; i < argnum; i++){
         string cur_word = cmd[i];
-        size_t pos = cur_word.find("$");
-        //在参数中找到了$字符
-        if(pos == 0){
-            if(cur_word[1] == '#'){
-                //打印参数个数
-                ss << argc - 1 << " ";
-            }else if(isdigit(cur_word[1])){
-                //打印参数，先把参数转化成数字
-                cur_word.erase(pos, 1);
-                int imm = stoi(cur_word);
-                ss << argv[imm] << " ";
-            }else{
-                //打印环境变量
-                cur_word.erase(pos, 1);
-                string environ = getenv(cur_word.c_str());
-                ss << environ << " ";
-            }
-        }else{
-        //原样输出
-            ss << cur_word << " ";
-        }
+        //调用explainpara解析，例如变量则会进行字符串替换
+        cur_word = explainpara(cur_word);
+        ss << cur_word << " ";
     }
     ss << endl;
     printmessage(ss.str(), "", 0);
@@ -850,26 +850,31 @@ void my_echo(string cmd[], int argnum){
 }
 
 void my_pwd(string cmd[], int argnum){
+    //参数检查
     if(argnum > 0){
         printmessage("", "Error! No parameter.\n", 1);
         return;
     }
+    //直接从pwd全局变量读取数据并输出
     string op = pwd + "\n";
     printmessage(op, "", 0);
     return;
 }
 
 void my_exit(string cmd[], int argnum){
+    //参数检查
     if(argnum > 0){
         printmessage("", "Error! No parameter.\n", 1);
         return;
     }
     printmessage("", "", 0);
+    //直接exit(0)退出
     exit(0);
     return;
 }
 
 void my_time(string cmd[], int argnum){
+    //检查参数
     if(argnum > 0){
         printmessage("", "Error! No parameter.\n", 1);
         return;
@@ -897,13 +902,16 @@ void my_set(string cmd[], int argnum){
         //若无参数直接输出所有的环境变量
         extern char **environ;
         for(int i = 0; environ[i] != NULL; i++){
-            ss << environ[i] << " ";
+            ss << environ[i] << "\n";
         }
         ss << endl;
         printmessage(ss.str(), "", 0);
     }else{
-        printmessage("", "Error! No parameter.\n", 1);
-        return;
+        //若有参数则重置myshell启动参数
+        for(int i = 0; i < argnum; i++){
+            argv[i+1] = cmd[i];
+        }
+        argc = argnum + 1;
     }
     return;
 }
@@ -911,31 +919,34 @@ void my_set(string cmd[], int argnum){
 void my_help(string cmd[], int argnum){
     stringstream ss;
     stringstream sss;
-
-    ifstream helpfile(helppath); // 打开文件
-
+    //打开文件
+    ifstream helpfile(helppath); 
+    //若文件打开失败则报错
     if (!helpfile.is_open()) {
         ss << "Failed to open the file." << endl;
         printmessage("", ss.str(), 1);
         return;
     }
-
+    //一行一行读入帮助文档
     string line;
     while (getline(helpfile, line)) {
-        ss << line << endl; // 逐行输出文件内容
+        ss << line << endl; //逐行输出文件内容
     }
-
-    helpfile.close(); // 关闭文件
-
+    //关闭文件
+    helpfile.close(); 
+    //输出信息
     if(argnum == 0){
+        //如果没有参数，那么直接打印帮助文档
         printmessage(ss.str(), "", 0);
     }else if(argnum == 1){
-        //若为一参数，则进行查找
+        //若为一个参数，则进行查找
         string ins = cmd[0];
         while(getline(ss, line)){
+            //查找待输出指令的首行
             if(line.find(ins) != string::npos){
                 sss << line << endl;
                 getline(ss, line);
+                //查找待输出指令的最后一行
                 while(line != ""){
                     sss << line << endl;
                     getline(ss, line);
@@ -945,7 +956,7 @@ void my_help(string cmd[], int argnum){
         }
         printmessage(sss.str(), "", 0);
     }else{
-        //参数过多
+        //若参数过多，则报错
         printmessage("", "Error! Too much parameters.\n", 1);
         return;
     }
@@ -993,6 +1004,7 @@ void my_umask(string cmd[], int argnum){
 }
 
 void my_exec(string cmd[], int argnum){
+    //若无参数则报错
     if(argnum == 0){
         printmessage("", "Error! Need parameter.\n", 1);
         return;
@@ -1004,12 +1016,14 @@ void my_exec(string cmd[], int argnum){
     }
     cmdarg[argnum] = NULL;
     printmessage("", "", 0);
+    //调用execvp运行程序
     execvp(cmd[0].c_str(), cmdarg);
     printmessage("", "Error! Cannot open the program.\n", 1);
     return;
 }
 
 void my_test(string cmd[], int argnum){
+    //参数检查，如果没有参数则报错
     if(argnum == 0){
         printmessage("", "Error! Need parameter.\n", 1);
         return;
@@ -1146,6 +1160,7 @@ void my_test(string cmd[], int argnum){
         }else if(cmd[0] == "-t"){
             //如果 fd 是一个与终端相连的打开的文件描述符则为真
             int fd;
+            //尝试将参数转化为数字
             try{
                 fd = stoi(curstr);
             }catch (const invalid_argument& e) {
@@ -1235,6 +1250,7 @@ void my_test(string cmd[], int argnum){
             else printmessage("false\n", "", 0);
         }
         //数值测试
+        //如下代码实现与之前类似，不再注释，具体详见帮助文档
         else if(symbol == "-eq"){
             double num1; 
             double num2;
@@ -1434,6 +1450,7 @@ void my_test(string cmd[], int argnum){
 
 void my_outer(string cmd[], int argnum){
     pid_t son = fork();
+    //保存原来的子进程
     int old_sonpid = sonpid;
     sonpid = son;
     if(son < 0){
@@ -1452,21 +1469,30 @@ void my_outer(string cmd[], int argnum){
         sonpid = -1;
         printmessage("",  "", 0);
     }
+    //恢复原来的子进程
     sonpid = old_sonpid;
     return;
 }
 
 void my_jobs(string cmd[], int argnum){
+    //参数检查
+    if(argnum > 0){
+        printmessage("", "Error! No parameter.\n", 1);
+        return;
+    }
+
     string out = "";
-    //write(STDOUT_FILENO, out.c_str(), out.length());
     stringstream ss;
+    //遍历jobs表进行打印
     for(vector<struct task>::iterator i = jobs.begin(); i < jobs.end(); i++){
         ss << "[" << i - jobs.begin() + 1 << "]" << "\t" << (*i).pid << "\t";
+        //对于state进行解释
         switch((*i).state){
             case 0: ss << "done" << "\t"; break;
             case 1: ss << "suspend" << "\t"; break;
             case 2: ss << "running" << "\t"; break;
         }
+        //打印指令
         for(vector<string>::iterator j = (*i).cmd.begin(); j < (*i).cmd.end(); j++){
             ss << *j << " ";
         }
@@ -1522,10 +1548,10 @@ void my_fg(string cmd[], int argnum){
     if(jobs[num].state == 1){
         //若进程被挂起，则向其发送SIGCONT信号并调⽤waitpid等待其结束
 
-        stringstream ssss;
-        ssss << num << endl << jobs[num].pid << endl;
-        string sssss = ssss.str();
-        write(teroutput, sssss.c_str(), sssss.length());
+        // stringstream ssss;
+        // ssss << num << endl << jobs[num].pid << endl;
+        // string sssss = ssss.str();
+        // write(teroutput, sssss.c_str(), sssss.length());
 
         kill(jobs[num].pid, SIGCONT);
         pid_t old_sonpid = sonpid;
@@ -1653,5 +1679,6 @@ void signal_handler(int signal){
         }
         //把子进程设置为-1，也就表示没有子进程
         sonpid = -1;
+    }else if(signal == SIGCONT){
     }
 }
