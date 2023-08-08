@@ -941,6 +941,7 @@ void my_help(string cmd[], int argnum){
     }else if(argnum == 1){
         //若为一个参数，则进行查找
         string ins = cmd[0];
+        ins = ">> " + ins;
         while(getline(ss, line)){
             //查找待输出指令的首行
             if(line.find(ins) != string::npos){
