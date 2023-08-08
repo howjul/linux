@@ -1,7 +1,7 @@
 //myshell.cpp
 //朱镐哲 3210103283
 
-//头文件
+//*******************头文件*******************
 #include <iostream>
 #include <string>
 #include <ctime>
@@ -18,60 +18,62 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+
 using namespace std;
 
-//全局变量
-//环境变量
-int shellpid;       //当前进程号
-string hostname;    //主机
-string username;    //用户名
-string homepath;    //主目录路径
-string pwd;         //当前路径
-string helppath;        //获得help文件路径
-string myshellpath;     //获得myshell路径
-//参数
-int argc;
-string argv[1024];
+//*******************全局变量*******************
+//环境变量相关
+int shellpid;           //当前进程号
+string hostname;        //存储主机名
+string username;        //存储用户名
+string homepath;        //存储家目录路径
+string pwd;             //存储当前路径
+string helppath;        //存储help文件路径
+string myshellpath;     //存储myshell路径
+//参数相关
+int argc;               //存储调用程序时的参数个数
+string argv[1024];      //存储调用程序时的参数个数
 //执行状态
-int state;
-//输出
-string output;      //正常输出
-string operror;     //错误信息
-//重定向
-int InputAtterminal;    //输入在终端
-int OutputAtterminal;   //输出在终端
-string Infilepath;         //输入重定向文件
-string Outfilepath;        //输出重定向文件
-string Errfilepath;        //错误重定向文件
+int state;              //0表示执行成功，1表示执行出错
+//输出相关
+string output;          //输出到out端的字符流
+string operror;         //输出到err端的字符流
+//重定向相关
+int InputAtterminal;    //表示输入在终端
+int OutputAtterminal;   //表示输出在终端
+string Infilepath;      //输入重定向文件
+string Outfilepath;     //输出重定向文件
+string Errfilepath;     //错误重定向文件
 int ReIn;               //是否有输入重定向
 int ReOut;              //是否有输出重定向
 int ReErr;              //是否有错误重定向
 //输入输出缓冲
-char buf[1024];   
-//终端的输入输出的文件标识符
-int terinput;
-int teroutput;  
+char buf[1024];
+//终端文件标识符
+int terinput;           //终端输入的文件标识符
+int teroutput;          //终端输出的文件标识符
 //后台进程
 struct task{
-    int pid;    //pid
-    int state;  //0-done,1-suspand,2-running
-    vector<string> cmd;
+    int pid;                //存储当前job的进程号
+    int state;              //状态：0-done,1-suspand,2-running
+    vector<string> cmd;     //存储当前的指令内容
 };
-vector<struct task> jobs;
+vector<struct task> jobs;   //存储job
 //子进程
-pid_t sonpid;
+pid_t sonpid;               //存储子进程的进程号
 //当前前台正在执行的指令
 vector<string> curcmd;
 
+//*******************函数声明*******************
+void initshell(int Argc, char *Argv[]);         //启动myshell时执行此函数，进行一些初始化
+void back(string cmd[], int argnum);        //判断是否有&，即判断是否后台执行
+void pipeanalyze(string cmd[], int argnum);     //判断是否有管道
+void analyze(string cmd[], int argnum);     //解析单条命令的主要函数，用于实现重定向和正常的指令分析
+void printmessage(string mes1, string mes2, int cur_state);     //用于设置消息输出和运行状态
+string explainpara(string input);       //用于解析一些变量例如$0,$HOME,$#等，返回变量值
+void signal_handler(int signal);        //重新设置中断处理函数
 
-void initshell(int Argc, char *Argv[]);
-void back(string cmd[], int argnum);
-void pipeanalyze(string cmd[], int argnum);
-void analyze(string cmd[], int argnum);
-void printmessage(string mes1, string mes2, int cur_state);
-string explainpara(string input);
-void signal_handler(int signal);
-
+//如下函数为具体指令的实现
 void my_cd(string cmd[], int argnum);
 void my_dir(string cmd[], int argnum);
 void my_clr(string cmd[], int argnum);
@@ -87,15 +89,21 @@ void my_test(string cmd[], int argnum);
 void my_jobs(string cmd[], int argnum);
 void my_fg(string cmd[], int argnum);
 void my_bg(string cmd[], int argnum);
+//调用外部指令
 void my_outer(string cmd[], int argnum);
 
+//******************主函数*******************
 int main(int Argc, char *Argv[]){
+    //进行初始化
     initshell(Argc, Argv);
+
     int flag = 1;
     while(flag){
-        //判断是否有子进程结束
+        //1.每次打印提示符号之前，先判断是否有子进程结束
         for(int i = 0; i < jobs.size(); i++){
             if(waitpid(jobs[i].pid, NULL, WNOHANG) == jobs[i].pid && jobs[i].state != 0){
+                //遍历jobs数组中的所有元素，如果从其他状态变成done，则将其信息删除
+                //如果输入在终端，那么进行打印
                 if(InputAtterminal){
                     stringstream ss;
                     ss << "[" << i + 1 << "]" << "\t" << jobs[i].pid << "\t";
@@ -107,52 +115,62 @@ int main(int Argc, char *Argv[]){
                     string out = ss.str();
                     write(teroutput, out.c_str(), out.length());
                 }
+                //从jobs中删除此元素
                 jobs.erase(jobs.begin() + i);
             }
         }
 
-        //打印提示
-        //如果路径中包含主目录，则替换成～
+        //2.如果输入在终端，那么打印提示符
         if(InputAtterminal){
             string cur_path = pwd;
+            //如果路径中包含主目录，则替换成～
             size_t pos = pwd.find(homepath);
             if(pos != string::npos){
                 cur_path.erase(pos, homepath.length());
                 cur_path = "~" + cur_path;
             }
+            //打印提示
             snprintf(buf, sizeof(buf), "\033[36m%s@%s: \033[33m%s$ \033[?25h", username.c_str(), hostname.c_str(), cur_path.c_str());
             string print = buf;
             write(teroutput, print.c_str(), print.length());
         }
         
-        //存储命令
+        //3.读入并存储命令
         char command[1024];
-        //getline(cin, command);  //读入以换行为末尾的指令
         int i = 0;
+        //一个一个字符读入输入
         while(1){
             ssize_t ret = read(STDIN_FILENO, command + i, 1);
             if(ret <= 0){
                 flag = 0;
                 break;
             }else if(command[i] == '\n'){
+                //把换行符换成零字符并退出循环
                 command[i] = '\0';
                 break;
             }
             i++;
         }
         
+        //4.分割指令
         istringstream input(command);
         vector<string> cmd;
         string word;
         while(input >> word) cmd.push_back(word); //把指令按空格分成若干字符串
 
-        //解析命令
-        state = 0;
+        //5.解析并命令
+        state = 0;  //指令的执行状态
+        //执行命令，这个函数中事实上集成了三个函数
+        //1.back()：判断是否需要后台执行
+        //2.pipeanalyze()：判断是否有管道
+        //3.analyze()：实现重定向和普通的单条指令执行
         back(cmd.data(), cmd.size());
     }
     return 0;
 }
 
+//******************函数定义*******************
+//启动myshell时执行此函数，进行一些初始化
 void initshell(int Argc, char * Argv[]){
     //获得当前进程号
     shellpid = getpid();
@@ -168,21 +186,19 @@ void initshell(int Argc, char * Argv[]){
 
     helppath = pwd + "/help"; //获得帮助路径
 
-    //参数复制
+    //参数复制到全局变量
     argc = Argc;
     for(int i = 0; i < Argc; i++){
         argv[i] = Argv[i];
     }
 
-    //获取当前shell所在路径，linux环境下
+    //linux环境下获取myshell所在路径，并设置环境变量
     char buffer[PATH_MAX];
     ssize_t len = readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
     if (len != -1) {
         buffer[len] = '\0';
         myshellpath = buffer;
-        //cout << getenv("SHELL");
         setenv("SHELL", buffer, 1);
-        //cout << getenv("SHELL");
     } else {
         perror("Error while getting program path");
     }
@@ -194,7 +210,8 @@ void initshell(int Argc, char * Argv[]){
     terinput = open("/dev/tty", O_RDONLY);
     teroutput = open("/dev/tty", O_WRONLY);
 
-    //如果有一个参数，那就是正常进入，若两个或以上就要进行询问
+    //如果只有一个参数，那就是正常进入
+    //若两个或以上就要进行询问
     if(argc >= 2){
         //读入用户的选择
         cout << "Is the '" << argv[1] << "' an input file?[Y/n] ";
@@ -234,11 +251,13 @@ void initshell(int Argc, char * Argv[]){
     return;
 }
 
+//判断是否有&，即判断是否后台执行
 void back(string cmd[], int argnum){
     //设置当前指令的命令
     curcmd.clear();
     for(int i = 0; i < argnum; i++) curcmd.push_back(cmd[i]);
 
+    //检查最后一个字符串，看是否需要后台调用
     if(argnum > 0 && cmd[argnum - 1] == "&"){
         //进程到后台执行
         pid_t son = fork();
@@ -254,6 +273,7 @@ void back(string cmd[], int argnum){
         }
         if(son > 0){
             //父进程
+            //将子进程的信息写入curjob数组中
             struct task curjob;
             curjob.pid = son;
             curjob.state = 2;
@@ -262,6 +282,7 @@ void back(string cmd[], int argnum){
             }
             string print("hello");
             jobs.push_back(curjob);
+            //如果输入在终端，则输出信息到终端
             if(InputAtterminal){
                 stringstream ss;
                 ss << "[" << jobs.size() << "]" << "\t" << curjob.pid << endl;
@@ -276,6 +297,7 @@ void back(string cmd[], int argnum){
     return;
 }
 
+//判断是否有管道
 void pipeanalyze(string cmd[], int argnum){
     pid_t curpid;
 
@@ -296,18 +318,21 @@ void pipeanalyze(string cmd[], int argnum){
 
     //如果有管道
     sonpid = fork();
-    if(sonpid){//父进程
+    if(sonpid){
+        //父进程等待子进程完成
         while (sonpid != -1 && !waitpid(sonpid, NULL, WNOHANG)); 
         sonpid = -1;
-    }else{//子进程
+    }else{
+        //子进程
         int oriin = dup(STDIN_FILENO);
         int oriout = dup(STDOUT_FILENO);
         char buffer[1024];
         int pipe1[2];
         int pipe2[2];
 
-        //只有一个管道
+        //分一个管道和多个管道两种情况
         if(pipenum == 1){
+            //若只有一个管道
             pipe(pipe1);
             pid_t cursonpid[pipenum + 1];
 
@@ -317,21 +342,21 @@ void pipeanalyze(string cmd[], int argnum){
                     //子进程
                     if(i == 0){
                         //第一条指令输入到stdin
-                        close(pipe1[0]);
+                        close(pipe1[0]);    //关闭pipe1读取端
                         //dup2(oriin, STDIN_FILENO);
-                        dup2(pipe1[1], STDOUT_FILENO);
-                        close(pipe1[1]);
+                        dup2(pipe1[1], STDOUT_FILENO);  //pipe1写入端关联标准输出
+                        close(pipe1[1]);    //关闭pipe1写入段
 
-                        analyze(cmd, pipepos[0]);
+                        analyze(cmd, pipepos[0]);   //调用单指令分析函数
                         exit(0);
                     }else if(i == pipenum){
                         //最后一条指令输出到stdout
-                        close(pipe1[1]);//关闭写入端
-                        dup2(pipe1[0], STDIN_FILENO);
+                        close(pipe1[1]);    //关闭pipe1写入端
+                        dup2(pipe1[0], STDIN_FILENO);   //pipe1读取端关联标准输入
                         //dup2(oriout, STDOUT_FILENO);
-                        close(pipe1[0]);  
+                        close(pipe1[0]);    //关闭pipe1读取段
 
-                        analyze(cmd + pipepos[0] + 1, argnum - pipepos[0] - 1);
+                        analyze(cmd + pipepos[0] + 1, argnum - pipepos[0] - 1);     //调用单指令分析函数
                         exit(0);
                     }
                 }
@@ -359,37 +384,37 @@ void pipeanalyze(string cmd[], int argnum){
                     //子进程
                     if(i == 0){
                         //第一条指令输入到stdin
-                        close(pipe1[0]);
-                        close(pipe2[0]);
-                        close(pipe2[1]);
+                        close(pipe1[0]);    //关闭pipe1读取端
+                        close(pipe2[0]);    //关闭pipe2读取端
+                        close(pipe2[1]);    //关闭pipe2写入端
 
-                        dup2(pipe1[1], STDOUT_FILENO);
-                        close(pipe1[1]);
+                        dup2(pipe1[1], STDOUT_FILENO);  //pipe1写入端关联标准输出
+                        close(pipe1[1]);    //关闭pipe1写入端
 
-                        analyze(cmd, pipepos[i]);
+                        analyze(cmd, pipepos[i]);   //调用单指令分析函数
                         exit(0);
                     }else if(i == pipenum){
                         //最后一条指令输出到stdout
-                        close(pipe1[1]);//关闭写入端
-                        close(pipe1[0]);
-                        close(pipe2[1]);
+                        close(pipe1[1]);    //关闭pipe1写入端
+                        close(pipe1[0]);    //关闭pipe1读取端
+                        close(pipe2[1]);    //关闭pipe2写入端
                         
-                        dup2(pipe2[0], STDIN_FILENO);
-                        close(pipe2[0]);  
+                        dup2(pipe2[0], STDIN_FILENO);   //pipe2写入端关联标准输入
+                        close(pipe2[0]);    //关闭pipe2读取端
 
                         analyze(cmd + pipepos[pipenum - 1] + 1, argnum - pipepos[pipenum - 1] - 1);
                         exit(0);
                     }else{
                         //中间的指令，输入来自上一个指令的输出，同时输出到下一个指令的输入
-                        close(pipe1[1]);
-                        close(pipe2[0]);
+                        close(pipe1[1]);    //关闭pipe1写入端
+                        close(pipe2[0]);    //关闭pipe2读取端
 
                         dup2(pipe1[0], STDIN_FILENO);   //从pipe1读入数据
                         dup2(pipe2[1], STDOUT_FILENO);  //从pipe2输出数据
-                        dup2(pipe2[1], pipe1[1]);
+                        dup2(pipe2[1], pipe1[1]);       //把pipe2的输出关联到pipe1的输出端
 
-                        close(pipe1[0]);
-                        close(pipe2[1]);
+                        close(pipe1[0]);    //关闭pipe1读取端
+                        close(pipe2[1]);    //关闭pipe2写入端
 
                         analyze(cmd + pipepos[i - 1] + 1, pipepos[i] - pipepos[i - 1] - 1);
                         exit(0);
@@ -411,6 +436,7 @@ void pipeanalyze(string cmd[], int argnum){
             exit(0);
         }
 
+        //恢复原来的标准输入输出
         dup2(oriin,STDIN_FILENO);
         dup2(oriout, STDOUT_FILENO);
         _exit(0);
@@ -419,8 +445,9 @@ void pipeanalyze(string cmd[], int argnum){
     return;
 }
 
+//解析单条命令的主要函数，用于实现重定向和正常的指令分析
 void analyze(string cmd[], int argnum){
-    // // 打印当前运行的指令
+    // // DEBUG: 打印当前运行的指令
     // stringstream ssss;
     // for(int i = 0; i < argnum; i++){
     //     ssss << cmd[i] << " ";
@@ -446,13 +473,15 @@ void analyze(string cmd[], int argnum){
         //输入重定向
         if(cmd[i] == "<" || cmd[i] == "0<"){
             //获取参数路径，如果有多个，则报错
-            ReIn = 1;
+            ReIn = 1;   //设置标志位
+            //如果Infilepath已经有数据，说明已经被设置过，说明有多个同类型重定向文件，报错
             if(Infilepath.length() != 0){
                 printmessage("", "Error! Too much file for input.\n", 1);
                 break;
             }
             Infilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
+            //以只读模式打开
             int Infd = open(Infilepath.c_str(), O_RDONLY);
             if(Infd < 0){
                 printmessage("", "Error! No such input file.\n", 1);
@@ -463,19 +492,24 @@ void analyze(string cmd[], int argnum){
                 printmessage("", "Error! Infd -> STDIN_FILENO dup2 failed.\n", 1);
                 break;
             }
+            //关闭路径对应的文件
             close(Infd);
-            if(argnum > i) argnum = i;////////////////////////个数验证
+            //调整参数个数
+            if(argnum > i) argnum = i;
         }
+
         //输出重定向
         if(cmd[i] == ">" || cmd[i] == "1>"){
             //获取参数路径，如果有多个，则报错
-            ReOut = 1;
+            ReOut = 1;  //设置标志位
+            //如果Outfilepath已经有数据，说明已经被设置过，说明有多个同类型重定向文件，报错
             if(Outfilepath.length() != 0){
                 printmessage("", "Error! Too much file for output.\n", 1);
                 break;
             }
             Outfilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
+            //以读写模式打开，若不存在则创建文件，若存在则截断文件
             int Outfd = open(Outfilepath.c_str(), O_RDWR|O_CREAT|O_TRUNC, 0666);
             if(Outfd < 0){
                 printmessage("", "Error! No such output file.\n", 1);
@@ -486,19 +520,23 @@ void analyze(string cmd[], int argnum){
                 printmessage("", "Error! Outfd -> STDOUT_FILENO dup2 failed.\n", 1);
                 break;
             }
+            //关闭路径对应的文件
             close(Outfd);
+            //调整参数个数
             if(argnum > i) argnum = i;
         }
 
         if(cmd[i] == "2>"){
             //获取参数路径，如果有多个，则报错
-            ReErr = 1;
+            ReErr = 1;  //设置标志位
+            //如果Errfilepath已经有数据，说明已经被设置过，说明有多个同类型重定向文件，报错
             if(Errfilepath.length() != 0){
                 printmessage("", "Error! Too much file for error output.\n", 1);
                 break;
             }
             Errfilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
+            //以读写模式打开，若不存在则创建文件，若存在则截断文件
             int Errfd = open(Errfilepath.c_str(), O_RDWR|O_CREAT|O_TRUNC, 0666);
             if(Errfd < 0){
                 printmessage("", "Error! No such error output file.\n", 1);
@@ -509,19 +547,23 @@ void analyze(string cmd[], int argnum){
                 printmessage("", "Error! Errfd -> STDERR_FILENO dup2 failed.\n", 1);
                 break;
             }
+            //关闭路径对应的文件
             close(Errfd);
+            //调整参数个数
             if(argnum > i) argnum = i;
         }
         //输出重定向，追加
         if(cmd[i] == ">>" || cmd[i] == "1>>"){
             //获取参数路径，如果有多个，则报错
-            ReOut = 1;
+            ReOut = 1;  //设置标志位
+            //如果Outfilepath已经有数据，说明已经被设置过，说明有多个同类型重定向文件，报错
             if(Outfilepath.length() != 0){
                 printmessage("", "Error! Too much file for output.\n", 1);
                 break;
             }
             Outfilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
+            //以读写模式打开，若不存在则创建文件，若存在则追加
             int Outfd = open(Outfilepath.c_str(), O_RDWR|O_CREAT|O_APPEND, 0666);
             if(Outfd < 0){
                 printmessage("", "Error! No such output file.\n", 1);
@@ -532,19 +574,23 @@ void analyze(string cmd[], int argnum){
                 printmessage("", "Error! Outfd -> STDOUT_FILENO dup2 failed.\n", 1);
                 break;
             }
+            //关闭路径对应的文件
             close(Outfd);
+            //调整参数个数
             if(argnum > i) argnum = i;
         }
 
         if(cmd[i] == "2>"){
             //获取参数路径，如果有多个，则报错
-            ReErr = 1;
+            ReErr = 1;  //设置标志位
+            //如果Errfilepath已经有数据，说明已经被设置过，说明有多个同类型重定向文件，报错
             if(Errfilepath.length() != 0){
                 printmessage("", "Error! Too much file for error output.\n", 1);
                 break;
             }
             Errfilepath = cmd[i+1];
             //打开路径对应的文件，如果打不开则报错
+            //以读写模式打开，若不存在则创建文件，若存在则追加
             int Errfd = open(Errfilepath.c_str(), O_RDWR|O_CREAT|O_APPEND, 0666);
             if(Errfd < 0){
                 printmessage("", "Error! No such error output file.\n", 1);
@@ -555,7 +601,9 @@ void analyze(string cmd[], int argnum){
                 printmessage("", "Error! Errfd -> STDERR_FILENO dup2 failed.\n", 1);
                 break;
             }
+            //关闭路径对应的文件
             close(Errfd);
+            //调整参数个数
             if(argnum > i) argnum = i;
         }
     }
@@ -593,6 +641,7 @@ void analyze(string cmd[], int argnum){
         }else if(cmd[0] == "bg"){
             my_bg(cmd + 1, argnum - 1);
         }else{
+            //如果不是上述内部指令，则解释为外部指令
             my_outer(cmd, argnum);
         }
     }
@@ -608,16 +657,20 @@ void analyze(string cmd[], int argnum){
     return;
 }
 
+//用于设置消息输出和运行状态
 void printmessage(string mes1, string mes2, int cur_state){
+    //设置消息和状态
     output = mes1;
     operror = mes2;
     state = cur_state;
+    //这里不能使用printf，而是需要使用write，因为不一定输出到终端
     //printf("%s%s", output.c_str(), operror.c_str());
     write(STDOUT_FILENO, output.c_str(), output.length());
     write(STDERR_FILENO, operror.c_str(), operror.length());
     return;
 }
 
+//用于解析一些变量例如$0,$HOME,$#等，返回变量值
 string explainpara(string input){
     string output;
 
@@ -1569,16 +1622,20 @@ void my_bg(string cmd[], int argnum){
     return;
 }
 
+//重新设置中断处理函数
 void signal_handler(int signal){
+    //重新设置Ctrl+Z中断，对应SIGSTOP信号
     if(signal == SIGTSTP){
+        //以sonpid为组长创建后台进程组
         setpgid(sonpid, 0);
+        //发送SIGSTOP信号，如果失败则报错
         if(kill(sonpid, SIGSTOP) != 0){
             stringstream ss;
             ss << "pid:" << sonpid << "suspended failed" << endl;
             string o = ss.str();
             write(STDERR_FILENO, o.c_str(), o.length());
         }
-
+        //更新jobs数组
         struct task curjob;
         curjob.pid = sonpid;
         curjob.state = 1;
@@ -1587,13 +1644,14 @@ void signal_handler(int signal){
         }
         string print("hello");
         jobs.push_back(curjob);
+        //如果输入在终端，那么需要输出消息
         if(InputAtterminal){
             stringstream ss;
             ss << "[" << jobs.size() << "]" << "\t" << curjob.pid << "\t" << "suspend" << endl;
             string print = ss.str();
             write(teroutput,print.c_str(), print.length());
         }
-
+        //把子进程设置为-1，也就表示没有子进程
         sonpid = -1;
     }
 }
