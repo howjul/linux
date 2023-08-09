@@ -582,7 +582,7 @@ void analyze(string cmd[], int argnum){
             if(argnum > i) argnum = i;
         }
 
-        if(cmd[i] == "2>"){
+        if(cmd[i] == "2>>"){
             //获取参数路径，如果有多个，则报错
             ReErr = 1;  //设置标志位
             //如果Errfilepath已经有数据，说明已经被设置过，说明有多个同类型重定向文件，报错
