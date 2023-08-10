@@ -268,7 +268,8 @@ void back(string cmd[], int argnum){
         if(son == 0){
             //子进程进入后台运行
             setpgid(0, 0);
-            analyze(cmd, argnum - 1);
+            //analyze(cmd, argnum - 1);
+            pipeanalyze(cmd, argnum - 1);
             exit(0);
         }
         if(son > 0){
